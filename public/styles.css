@@ -482,3 +482,16 @@ button:disabled {
   cursor:default;
   opacity:.5
 }
+.commands-editor{max-width:1000px}
+.command-card{border:1px solid var(--line);border-radius:10px;padding:18px;margin:20px 0}
+.command-card legend{padding:0 8px;color:var(--cyan)}
+.command-fields{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+.command-fields label{flex:1;min-width:160px}
+.command-fields input:not([type=checkbox]){display:block;margin-top:8px}
+.command-fields .command-enabled{display:flex!important;gap:8px;align-items:center}
+.command-toolbar{display:flex;gap:12px;flex-wrap:wrap;margin:20px 0}
+.command-preview{margin-top:30px;border-top:1px solid var(--line);padding-top:12px}
+.command-preview form{display:flex;gap:14px;align-items:end;flex-wrap:wrap}
+.command-preview input{display:block;margin-top:8px}
+.command-preview pre{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--cyan);line-height:1.8}
+.commands-editor [data-status]{color:var(--cyan)!important}

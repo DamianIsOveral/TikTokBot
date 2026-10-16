@@ -7,3 +7,4 @@
 .local-archive
 coverage
 *.log
+data

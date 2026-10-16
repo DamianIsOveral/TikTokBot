@@ -3,9 +3,11 @@ import type { AppConfig } from './config.ts';
 import type { Connector, ConnectorLoader, TikTokMessage } from './types.ts';
 import type { LiveEvent, Phase } from '../shared/events.ts';
 import { loadConnector } from './connector.ts';
+import { defaultCommands } from './command-defaults.ts';
+import type { CommandDefinition } from '../shared/commands.ts';
 
 export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => void,
-  load: ConnectorLoader = loadConnector) {
+  load: ConnectorLoader = loadConnector, getCommands: () => readonly CommandDefinition[] = defaultCommands) {
   let connection: Connector | undefined;
   let pending = false;
   let generation = 0;
@@ -33,7 +35,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       const active = () => connected && connection === current && attempt === generation;
       const command = createCommands({
         send: text => current!.sendMessage(text), active,
-        botUsername: config.botUsername, report
+        botUsername: config.botUsername, report, getCommands
       });
       current.on('chat', (data: TikTokMessage) => {
         if (!active()) return;

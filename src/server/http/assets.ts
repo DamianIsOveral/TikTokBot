@@ -6,7 +6,7 @@ const assets = new Map<string, [URL, string]>([
   ['/', [new URL('public/index.html', root), 'text/html; charset=utf-8']],
   ['/styles.css', [new URL('public/styles.css', root), 'text/css; charset=utf-8']]
 ]);
-for (const name of ['app', 'connection', 'dom', 'filters', 'model', 'pages', 'render', 'demo']) {
+for (const name of ['app', 'connection', 'dom', 'filters', 'model', 'pages', 'render', 'demo', 'commands']) {
   assets.set(`/assets/${name}.js`, [new URL(`dist/browser/client/${name}.js`, root), 'text/javascript; charset=utf-8']);
 }
 

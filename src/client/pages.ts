@@ -1,10 +1,13 @@
 import { element, escapeHTML, toast } from './dom.js';
 import { saveSettings } from './filters.js';
 import { pending, state } from './model.js';
+import { mountCommands } from './commands.js';
 
 export function renderPage(onChange: () => void): void {
   const node = element('#otherpage');
-  if (state.page === 'Overzicht') {
+  if (state.page === 'Commands') {
+    mountCommands();
+  } else if (state.page === 'Overzicht') {
     node.innerHTML = `<h2>Overzicht</h2><p>Faynominaal LIVE Dashboard · demo of LIVE-chat</p>
       <p>${state.messages.length} berichten · ${pending().length} te beoordelen · ${state.activity.length} demoacties.</p>
       <p>Livechat en herkenning van verdachte berichten zijn lokaal uit te proberen. TikTok LIVE is beschikbaar via Verbinden.
