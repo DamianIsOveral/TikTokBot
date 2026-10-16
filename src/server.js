@@ -3,8 +3,9 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { readConfig } from './config.js';
 import { createLive } from './live.js';
+import { createSession } from './session.js';
 
-export function createApp(config) {
+export function createApp(config, loadConnector) {
   const clients = new Set();
   function broadcast(event) {
     const frame = `data: ${JSON.stringify(event)}\n\n`;
@@ -12,7 +13,8 @@ export function createApp(config) {
       if (!client.write(frame)) client.destroy();
     }
   }
-  const live = createLive(config, broadcast);
+  const session = createSession(broadcast);
+  const live = createLive(config, session.receive, loadConnector);
   const files = new Map([
     ['/', ['index.html', 'text/html; charset=utf-8']],
     ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
@@ -37,10 +39,14 @@ export function createApp(config) {
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ username: config.username, botEnabled: config.botEnabled })); return;
     }
+    if (path === '/api/snapshot' && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(session.snapshot())); return;
+    }
     if (path === '/api/events' && req.method === 'GET') {
       if (clients.size >= 10) { res.writeHead(503).end(); return; }
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'X-Accel-Buffering': 'no' });
-      res.write(`data: ${JSON.stringify({ type: 'status', text: live.status })}\n\n`);
+      res.write(`data: ${JSON.stringify(session.snapshot())}\n\n`);
       clients.add(res);
       req.on('close', () => clients.delete(res)); return;
     }

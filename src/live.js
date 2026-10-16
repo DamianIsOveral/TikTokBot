@@ -5,19 +5,19 @@ export function createLive(config, broadcast, load = () => import('tiktok-live-c
   let pending;
   let generation = 0;
   let status = 'Niet verbonden';
-  const report = text => { status = text; broadcast({ type: 'status', text }); };
+  const report = (text, phase) => { status = text; broadcast({ type: 'status', text, phase }); };
   async function stop() {
     generation++;
     const old = connection;
     connection = undefined;
-    report('Gestopt · Niet verbonden');
+    report('Gestopt · Niet verbonden', 'stopped');
     try { await old?.disconnect(); } catch { /* Connector is mogelijk al afgesloten. */ }
   }
   async function connect() {
     if (pending || connection) return;
     const attempt = ++generation;
     pending = true;
-    report(`Verbinding maken met @${config.username}…`);
+    report(`Verbinding maken met @${config.username}…`, 'connecting');
     let current;
     try {
       const { TikTokLiveConnection } = await load();
@@ -37,20 +37,20 @@ export function createLive(config, broadcast, load = () => import('tiktok-live-c
         if (config.botEnabled) void command(data);
       });
       current.on('error', () => {
-        if (connection === current) report('TikTok-verbindingsprobleem. Stop en probeer opnieuw.');
+        if (connection === current) report('TikTok-verbindingsprobleem. Stop en probeer opnieuw.', 'error');
       });
       current.on('disconnected', () => {
         connected = false;
-        if (connection === current) { connection = undefined; report('Verbinding verbroken.'); }
+        if (connection === current) { connection = undefined; report('Verbinding verbroken.', 'disconnected'); }
       });
       await current.connect();
       if (attempt !== generation || connection !== current) { await current.disconnect(); return; }
       connected = true;
-      report(`LIVE verbonden met @${config.username} · bot ${config.botEnabled ? 'aan' : 'uit'}`);
+      report(`LIVE verbonden met @${config.username} · bot ${config.botEnabled ? 'aan' : 'uit'}`, 'connected');
     } catch {
       if (connection === current) connection = undefined;
       try { await current?.disconnect(); } catch {}
-      if (attempt === generation) report('Verbinden mislukt. Controleer LIVE-status en serverinstellingen.');
+      if (attempt === generation) report('Verbinden mislukt. Controleer LIVE-status en serverinstellingen.', 'error');
     } finally { pending = false; }
   }
   return { connect, stop, get status() { return status; } };

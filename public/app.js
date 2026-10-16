@@ -6,7 +6,8 @@ let messages=[], nextId=1, filter='Alle', page='Livechat', activity=[];
 const escapeHTML = v => String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function classify(text){if(settings.links&&/(https?:\/\/|www\.|klik op deze link)/i.test(text))return 'Links';if(settings.spam&&(/(.{4,}?)\1{2,}/i.test(text)||/volg mij.*volg mij/i.test(text)))return 'Spam';if(settings.swearing&&settings.words.split(',').map(w=>w.trim().toLowerCase()).filter(Boolean).some(w=>text.toLowerCase().includes(w)))return 'Schelden';return null}
 function add(user,text,time){messages.push({id:nextId++,user,text,time:time||new Date().toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}),resolved:false});if(messages.length>500)messages.shift()}
-[['Daan','Welke settings gebruik je?','01:37'],['bozekijker','Jij bent echt een sukkel','01:38'],['Julia','Zo gezellig hier 💕','01:38'],['chatspammer','VOLG MIJ! VOLG MIJ! VOLG MIJ!','01:39'],['Tim','Wat een skills zeg 👏','01:39'],['Sanne','Deze game is echt ziek!','01:39'],['promo_account','Gratis volgers? Klik op deze link!','01:40'],['Mike','Wanneer ga je weer live?','01:40'],['Naomi','Hahaha geweldig 😂','01:41'],['Sem','!discord','01:41'],['Kevin','Wat een lekkere stream 🔥','01:42'],['Lisa','Goedenavond allemaal! 👋','01:42']].forEach(a=>add(...a));
+function loadDemo(){messages=[];activity=[];[['Daan','Welke settings gebruik je?','01:37'],['bozekijker','Jij bent echt een sukkel','01:38'],['Julia','Zo gezellig hier 💕','01:38'],['chatspammer','VOLG MIJ! VOLG MIJ! VOLG MIJ!','01:39'],['Tim','Wat een skills zeg 👏','01:39'],['Sanne','Deze game is echt ziek!','01:39'],['promo_account','Gratis volgers? Klik op deze link!','01:40'],['Mike','Wanneer ga je weer live?','01:40'],['Naomi','Hahaha geweldig 😂','01:41'],['Sem','!discord','01:41'],['Kevin','Wat een lekkere stream 🔥','01:42'],['Lisa','Goedenavond allemaal! 👋','01:42']].forEach(a=>add(...a));}
+loadDemo();
 function pending(){return messages.filter(m=>!m.resolved&&classify(m.text))}
 function render(){const query=$('#search').value.toLowerCase();let rows=messages.filter(m=>(m.user+' '+m.text).toLowerCase().includes(query));if($('#sort').value==='new')rows=rows.slice().reverse();$('#chat').innerHTML=rows.map(m=>`<div class="row ${!m.resolved&&classify(m.text)?'flagged':''}"><time>${escapeHTML(m.time)}</time><div class="avatar">${escapeHTML(m.user[0].toUpperCase())}</div><strong>${escapeHTML(m.user)}</strong><p>${escapeHTML(m.text)}</p><span class="warning">${!m.resolved&&classify(m.text)?'⚠':''}</span></div>`).join('')||'<div class="empty">Geen berichten gevonden.</div>';const items=pending();$('#total').textContent=messages.length;$('#count').textContent=items.length;$('#badge').textContent=items.length;$('#reviews').innerHTML=items.filter(m=>filter==='Alle'||classify(m.text)===filter).slice().reverse().map(m=>`<div class="card"><div class="cardtop"><div class="avatar">${escapeHTML(m.user[0].toUpperCase())}</div><div class="cardbody"><time>${escapeHTML(m.time)}</time><strong>@${escapeHTML(m.user)}</strong><p>${escapeHTML(m.text)}</p><span class="tag">${escapeHTML(classify(m.text))}</span></div></div><div class="actions"><button class="mute" data-action="mute" data-id="${m.id}">♬ Dempen · demo</button><button data-action="ignore" data-id="${m.id}">Negeren</button><select aria-label="Demptijd voor ${escapeHTML(m.user)}"><option>5 minuten</option><option>30 minuten</option><option>Hele LIVE</option></select></div></div>`).join('')||'<div class="empty">✓ Geen berichten om te beoordelen.</div>';$('#activity').textContent=activity[0]||'Nog geen acties in deze demo.';if(page==='Overzicht'||page==='Moderatie')renderOther()}
 let toastTimer;function toast(text){$('#toast').textContent=text;$('#toast').style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').style.display='none',4500)}
@@ -17,14 +18,60 @@ function renderOther(){const el=$('#otherpage');if(page==='Overzicht'){el.innerH
 document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>{page=b.dataset.page;document.querySelectorAll('[data-page]').forEach(x=>x.classList.toggle('active',x===b));$('#chatpage').classList.toggle('hidden',page!=='Livechat');$('#otherpage').classList.toggle('hidden',page==='Livechat');if(page!=='Livechat')renderOther()}));render();
 
 let liveMode=false;
-$('#connect').onclick=()=>{
- if(!window.liveChat){toast('De serververbinding is niet beschikbaar.');return}
- liveMode=true;messages=[];activity=[];$('#add').disabled=true;
- $('.demo span').textContent='Echte chat geselecteerd. Dempen is nog steeds een demoactie.';
- render();window.liveChat.connect().catch(()=>{$('#live-status').textContent='Verbinden mislukt. Probeer opnieuw.'});
+let connectionPhase='idle';
+let renderTimer;
+function scheduleRender(){
+ if(renderTimer)return;
+ renderTimer=setTimeout(()=>{renderTimer=undefined;render()},100);
+}
+function updateMode(live){
+ liveMode=live;
+ $('#add').disabled=live;
+ $('.demo span').textContent=live
+  ? 'Livechat van de server. Laatste 500 berichten; dempen blijft een demoactie.'
+  : 'Lokale voorbeeldberichten. Een eventuele serververbinding blijft actief.';
+ $('#demo').disabled=!live;
+}
+function updateConnection(data){
+ $('#live-status').textContent=data.text;
+ connectionPhase=data.phase||connectionPhase;
+ $('#connect').disabled=connectionPhase==='connecting';
+ $('#connect').textContent=connectionPhase==='connected'?'Livechat tonen':'Verbinden';
+ $('#stop').disabled=!['connecting','connected','error'].includes(connectionPhase);
+}
+$('#demo').onclick=()=>{updateMode(false);loadDemo();render()};
+$('#connect').onclick=async()=>{
+ $('#connect').disabled=true;
+ try{await window.liveChat.connect()}
+ catch{toast('Verbinden mislukt. Controleer de serververbinding.')}
+ finally{$('#connect').disabled=connectionPhase==='connecting'}
 };
-$('#stop').onclick=async()=>{await window.liveChat?.stop();$('#live-status').textContent='Gestopt · Niet verbonden'};
-window.liveChat?.onEvent(data=>{
- if(data.type==='status')$('#live-status').textContent=data.text;
- if(data.type==='chat'&&liveMode){add(data.user,data.text);render()}
+$('#stop').onclick=async()=>{
+ try{await window.liveChat.stop()}
+ catch{toast('Stoppen mislukt. Controleer de serververbinding.')}
+};
+window.liveChat.onEvent(data=>{
+ if(data.type==='transport'){
+  $('#live-status').textContent=data.text;
+  $('#connect').disabled=true;$('#stop').disabled=true;
+ }
+ if(data.type==='snapshot'){
+  updateConnection(data);updateMode(data.mode==='live');
+  if(liveMode){
+   messages=[];activity=[];
+   for(const message of data.messages){
+    const time=new Date(message.time).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+    add(message.user,message.text,time);
+   }
+  }else{loadDemo()}
+  render();
+ }
+ if(data.type==='status'){
+  updateConnection(data);
+  if(data.phase==='connecting'){messages=[];activity=[];updateMode(true);render()}
+ }
+ if(data.type==='chat'&&liveMode){
+  const time=new Date(data.time).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+  add(data.user,data.text,time);scheduleRender();
+ }
 });

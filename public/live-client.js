@@ -1,13 +1,20 @@
 'use strict';
-const stream = new EventSource('/api/events');
+let stream;
 const listeners = new Set();
-stream.onmessage = event => {
-  const data = JSON.parse(event.data);
-  for (const listener of listeners) listener(data);
-};
-stream.onerror = () => {
-  for (const listener of listeners) listener({ type: 'status', text: 'Serververbinding onderbroken. Opnieuw verbinden…' });
-};
+let latestSnapshot;
+function subscribe() {
+  stream?.close();
+  stream = new EventSource('/api/events');
+  stream.onmessage = event => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'snapshot') latestSnapshot = data;
+    for (const listener of listeners) listener(data);
+  };
+  stream.onerror = () => {
+    for (const listener of listeners) listener({ type: 'transport', text: 'Serververbinding onderbroken. Opnieuw verbinden…' });
+  };
+}
+subscribe();
 async function request(action) {
   const response = await fetch(`/api/${action}`, {
     method: 'POST', headers: { 'X-Requested-With': 'faynominaal' }
@@ -15,8 +22,15 @@ async function request(action) {
   if (!response.ok) throw new Error('Serveractie mislukt.');
 }
 window.liveChat = {
-  connect: () => request('connect'), stop: () => request('stop'),
-  onEvent: listener => listeners.add(listener)
+  connect: async () => {
+    await request('connect');
+    subscribe();
+  },
+  stop: () => request('stop'),
+  onEvent: listener => {
+    listeners.add(listener);
+    if (latestSnapshot) listener(latestSnapshot);
+  }
 };
 fetch('/api/config').then(response => response.json()).then(config => {
   document.querySelector('#channel').textContent = `@${config.username}`;
