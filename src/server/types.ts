@@ -11,7 +11,8 @@ export type ConnectorOptions = NonNullable<ConstructorParameters<typeof TikTokLi
 
 export interface Connector {
   on(event: 'chat', listener: (message: TikTokMessage) => void): this;
-  on(event: 'error' | 'disconnected', listener: () => void): this;
+  on(event: 'error', listener: (error: unknown) => void): this;
+  on(event: 'disconnected', listener: () => void): this;
   connect(): Promise<unknown>;
   disconnect(): void | Promise<unknown>;
   sendMessage(text: string): Promise<unknown>;

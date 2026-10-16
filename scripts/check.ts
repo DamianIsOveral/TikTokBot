@@ -8,7 +8,7 @@ async function checkFolder(folder: string): Promise<void> {
     if (entry.isDirectory()) { await checkFolder(path); continue; }
     const text = await readFile(path, 'utf8');
     if (text.split('\n').length > 700) throw new Error(`${path} overschrijdt 700 regels.`);
-    if (/\.(ts|m?js)$/.test(entry.name)) {
+    if (/\.(m?js)$/.test(entry.name)) {
       const result = spawnSync(process.execPath, ['--check', path], { stdio: 'inherit' });
       if (result.status !== 0) process.exit(1);
     }

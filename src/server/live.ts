@@ -5,6 +5,7 @@ import type { LiveEvent, Phase } from '../shared/events.ts';
 import { loadConnector } from './connector.ts';
 import { defaultCommands } from './command-defaults.ts';
 import type { CommandDefinition } from '../shared/commands.ts';
+import { connectionErrorMessage } from './connection-errors.ts';
 
 export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => void,
   load: ConnectorLoader = loadConnector, getCommands: () => readonly CommandDefinition[] = defaultCommands) {
@@ -43,8 +44,8 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
           text: String(data.content ?? data.comment ?? '').slice(0, 2000) });
         if (config.botEnabled) void command(data);
       });
-      current.on('error', () => {
-        if (connection === current) report('TikTok-verbindingsprobleem. Stop en probeer opnieuw.', 'error');
+      current.on('error', (error: unknown) => {
+        if (connection === current) report(connectionErrorMessage(error), 'error');
       });
       current.on('disconnected', () => {
         connected = false;
@@ -54,10 +55,10 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       if (attempt !== generation || connection !== current) { await current.disconnect(); return; }
       connected = true;
       report(`LIVE verbonden met @${config.username} · bot ${config.botEnabled ? 'aan' : 'uit'}`, 'connected');
-    } catch {
+    } catch (error) {
       if (connection === current) connection = undefined;
       try { await current?.disconnect(); } catch {}
-      if (attempt === generation) report('Verbinden mislukt. Controleer LIVE-status en serverinstellingen.', 'error');
+      if (attempt === generation) report(connectionErrorMessage(error), 'error');
     } finally { pending = false; }
   }
   return { connect, stop, get status() { return status; } };
