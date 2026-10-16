@@ -10,6 +10,8 @@ npm start
 
 Open [het dashboard](http://127.0.0.1:3000). `npm run dev` herstart de server bij wijzigingen. `npm run check` en `npm test` controleren de app zonder TikTok te benaderen.
 
+Windows: de snelkoppeling **Faynominaal Dashboard** op het bureaublad start de server op de achtergrond als dat nodig is en opent daarna je standaardbrowser. De server blijft draaien wanneer je de browser sluit. De launcher staat in `scripts/open-dashboard.ps1` en respecteert HOST/PORT uit `.env`.
+
 Klik op Verbinden om één gedeelde TikTok-verbinding te starten. Zonder credentials wordt alleen publieke chat geprobeerd. Voor botantwoorden zijn alle drie TikTok/Euler-instellingen én `BOT_ENABLED=true` nodig. De bot reageert op `!discord`, `!socials` en `!dono`, met 60 seconden cooldown en minimaal één seconde tussen berichten. Dempen en moderatoracties blijven lokale demoacties.
 
 De server accepteert uitsluitend lokale hosts zolang login ontbreekt. Discord OAuth, gebruikersisolatie en publieke Coolify/Docker-deployment volgen later. Eén gedeeld kanaal is nog geen omgeving voor meerdere accounts. Maak geen publieke tunnel of proxy naar deze versie.

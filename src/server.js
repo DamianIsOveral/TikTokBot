@@ -31,7 +31,7 @@ export function createApp(config) {
     const path = req.url;
     if (path === '/health' && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
-      res.end('{"ok":true}'); return;
+      res.end('{"ok":true,"app":"faynominaal-live"}'); return;
     }
     if (path === '/api/config' && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');

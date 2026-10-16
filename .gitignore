@@ -11,3 +11,4 @@ dist/
 *.p12
 .DS_Store
 Thumbs.db
+*.lnk
