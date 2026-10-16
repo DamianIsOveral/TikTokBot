@@ -507,3 +507,5 @@ button:disabled {
 .access-row input,.access-row select{display:block;margin-top:8px;width:100%}
 .access-editor [data-status]{color:var(--cyan)!important}
 .sidefoot button{font-size:12px;padding:6px 12px}
+.feature-disabled{opacity:.5;filter:grayscale(1)}
+.actions{flex-wrap:wrap}

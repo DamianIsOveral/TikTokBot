@@ -8,7 +8,8 @@ import type { CommandDefinition } from '../shared/commands.ts';
 import { connectionErrorMessage } from './connection-errors.ts';
 
 export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => void,
-  load: ConnectorLoader = loadConnector, getCommands: () => readonly CommandDefinition[] = defaultCommands) {
+  load: ConnectorLoader = loadConnector, getCommands: () => readonly CommandDefinition[] = defaultCommands,
+  canSend: () => boolean = () => false) {
   let connection: Connector | undefined;
   let pending = false;
   let generation = 0;
@@ -35,14 +36,14 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       let connected = false;
       const active = () => connected && connection === current && attempt === generation;
       const command = createCommands({
-        send: text => current!.sendMessage(text), active,
+        send: text => current!.sendMessage(text), active: () => active() && canSend(),
         botUsername: config.botUsername, report: text => broadcast({ type: 'bot', text }), getCommands
       });
       current.on('chat', (data: TikTokMessage) => {
         if (!active()) return;
         broadcast({ type: 'chat', user: String(data.user?.uniqueId || data.user?.displayId || data.uniqueId || 'onbekend').slice(0, 100),
           text: String(data.content ?? data.comment ?? '').slice(0, 2000) });
-        if (config.botEnabled) void command(data);
+        if (config.botEnabled && canSend()) void command(data);
       });
       current.on('error', (error: unknown) => {
         if (error && typeof error === 'object' && 'info' in error && error.info === 'Failed to send message.') return;
@@ -55,7 +56,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       await current.connect();
       if (attempt !== generation || connection !== current) { await current.disconnect(); return; }
       connected = true;
-      report(`LIVE verbonden met @${config.username} · bot ${config.botEnabled ? 'aan' : 'uit'}`, 'connected');
+      report(`LIVE verbonden met @${config.username}`, 'connected');
     } catch (error) {
       if (connection === current) connection = undefined;
       try { await current?.disconnect(); } catch {}

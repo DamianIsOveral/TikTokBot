@@ -1,5 +1,9 @@
 import type { CommandDefinition, CommandSettings } from '../shared/commands.js';
 import { element, escapeHTML } from './dom.js';
+import type { EulerCapabilities } from '../shared/capabilities.js';
+
+let currentAccess: ((value: EulerCapabilities) => void) | undefined;
+export function updateCommandAccess(value: EulerCapabilities): void { currentAccess?.(value); }
 
 export function mountCommands(): void {
   const root = document.createElement('div');
@@ -25,12 +29,24 @@ export function mountCommands(): void {
   let loading = false;
   let loaded = false;
   let sequence = 0;
+  let allowed = false;
+  let botEnabled = false;
   const status = (message: string): void => { find('[data-status]').textContent = message; };
   function lockForm(locked: boolean): void {
     find('[data-form]').querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement>('input, textarea, button')
-      .forEach(field => { field.disabled = locked || !loaded; });
+      .forEach(field => { field.disabled = locked || !loaded || !allowed; });
     find<HTMLButtonElement>('[data-reload]').disabled = locked;
+    find('[data-list]').classList.toggle('feature-disabled', !allowed);
   }
+
+  currentAccess = value => {
+    if (!root.isConnected) return;
+    allowed = value.chat;
+    find('[data-bot]').textContent = allowed
+      ? botEnabled ? 'Webcast Premium beschikbaar. De bot verwerkt commands op de server zodra LIVE verbonden is.'
+        : 'Webcast Premium beschikbaar; botantwoorden staan uit op de server (BOT_ENABLED=false).' : value.reason;
+    lockForm(loading);
+  };
 
   function addRow(command: CommandDefinition): void {
     const id = ++sequence;
@@ -57,14 +73,11 @@ export function mountCommands(): void {
 
   function show(settings: CommandSettings): void {
     loaded = true;
+    botEnabled = settings.botEnabled;
     revision = settings.revision;
     find('[data-list]').replaceChildren();
     for (const command of settings.commands) addRow(command);
-    find('[data-bot]').textContent = settings.botEnabled
-      ? 'Botverwerking staat aan op de server, ook zonder geopend dashboard. Verzenden vereist een actieve TikTok-verbinding en Euler-chatverzendrechten.'
-      : 'Botantwoorden staan uit op de server. Stel BOT_ENABLED=true in .env in en herstart om echt te antwoorden.';
-    find<HTMLButtonElement>('[data-save]').disabled = false;
-    find<HTMLButtonElement>('[data-add]').disabled = false;
+    currentAccess?.(settings.capabilities);
     find('[data-result]').textContent = '';
   }
 
@@ -98,7 +111,7 @@ export function mountCommands(): void {
   });
   find<HTMLFormElement>('[data-form]').onsubmit = async event => {
     event.preventDefault();
-    if (loading) return;
+    if (loading || !allowed) return;
     loading = true;
     lockForm(true);
     try {
@@ -106,6 +119,7 @@ export function mountCommands(): void {
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'faynominaal' },
         body: JSON.stringify({ revision, commands: draft() }) });
       const result = await response.json() as CommandSettings & { error?: string };
+      if (result.capabilities) currentAccess?.(result.capabilities);
       if (!response.ok) throw new Error(result.error || 'Opslaan mislukt.');
       if (!root.isConnected) return;
       show(result);

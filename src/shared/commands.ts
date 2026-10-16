@@ -1,3 +1,5 @@
+import type { EulerCapabilities } from './capabilities.js';
+
 export interface CommandDefinition {
   trigger: string;
   responses: string[];
@@ -10,4 +12,4 @@ export interface CommandDocument {
   commands: CommandDefinition[];
 }
 
-export interface CommandSettings extends CommandDocument { botEnabled: boolean }
+export interface CommandSettings extends CommandDocument { botEnabled: boolean; capabilities: EulerCapabilities }

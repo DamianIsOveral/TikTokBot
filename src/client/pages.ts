@@ -3,6 +3,7 @@ import { saveSettings } from './filters.js';
 import { pending, state } from './model.js';
 import { mountCommands } from './commands.js';
 import { mountAccess } from './access.js';
+import { mountEulerAccess } from './euler.js';
 
 export function renderPage(onChange: () => void): void {
   const node = element('#otherpage');
@@ -14,11 +15,17 @@ export function renderPage(onChange: () => void): void {
     node.innerHTML = `<h2>Overzicht</h2><p>Faynominaal LIVE Dashboard · demo of LIVE-chat</p>
       <p>${state.messages.length} berichten · ${pending().length} te beoordelen · ${state.activity.length} demoacties.</p>
       <p>Livechat en herkenning van verdachte berichten zijn lokaal uit te proberen. TikTok LIVE is beschikbaar via Verbinden.
-      Gedeelde moderatoraccounts en echte dempacties zijn nog niet aangesloten.</p>`;
+      Discord-toegang is beschikbaar. LIVE-mutes en bans vereisen Webcast Premium en een moderatiekoppeling.</p>`;
   } else if (state.page === 'Moderatie') {
-    node.innerHTML = '<h2>Moderatiegeschiedenis · demo</h2>' + (state.activity.length
+    node.innerHTML = `<h2>Moderatie</h2><p>Community ondersteunt geen LIVE-mutes, bans, unmute of unban via Euler.
+      Deze acties vereisen Webcast Premium. De echte moderatiekoppeling is nog niet aangesloten.
+      Gebruik voorlopig de moderatieknoppen in TikTok zelf. Filters en lokaal negeren blijven beschikbaar.</p>
+      <div class="command-toolbar"><button disabled>Dempen</button><button disabled>Ban</button>
+      <button disabled>Unmute</button><button disabled>Unban</button></div>
+      <h3>Lokale activiteit</h3>` + (state.activity.length
       ? state.activity.map(line => `<p>${escapeHTML(line)}</p>`).join('')
       : '<p>Nog geen acties. Beoordeel een bericht op de pagina Livechat.</p>');
+    mountEulerAccess(node);
   } else if (state.page === 'Filters') {
     const settings = state.settings;
     node.innerHTML = `<h2>Filters</h2><p>Deze regels markeren berichten voor beoordeling. Er wordt niemand automatisch gedempt.</p>
@@ -43,5 +50,6 @@ export function renderPage(onChange: () => void): void {
       TikTok-verbinding: zie status bovenaan</p><p>Klik bovenaan op Verbinden om de chat te laden zodra het kanaal live is.
       Echte dempacties en synchronisatie tussen moderators vereisen daarna een afzonderlijk geteste koppeling.</p>
       <p>TikTok-cookies en API-sleutels worden uitsluitend op de server ingesteld.</p>`;
+    mountEulerAccess(node);
   }
 }

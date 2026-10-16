@@ -8,13 +8,14 @@ import { createConnection } from './connection.js';
 import { render, scheduleRender } from './render.js';
 import { renderPage } from './pages.js';
 import { requireUser } from './auth.js';
+import { showEulerAccess } from './euler.js';
 
 function updateMode(live: boolean): void {
   state.liveMode = live;
   element<HTMLButtonElement>('#add').disabled = live;
   element<HTMLButtonElement>('#demo').disabled = !live;
   element('.demo span').textContent = live
-    ? 'Livechat van de server. Laatste 500 berichten; dempen blijft een demoactie.'
+    ? 'Livechat van de server. Laatste 500 berichten; LIVE-moderatie is nog niet aangesloten.'
     : 'Lokale voorbeeldberichten. Een eventuele serververbinding blijft actief.';
 }
 
@@ -28,12 +29,16 @@ function updateConnection(data: StatusEvent | Snapshot): void {
 }
 
 function onEvent(data: ClientEvent): void {
-  if (data.type === 'bot') {
+  if (data.type === 'capabilities') {
+    showEulerAccess(data.value);
+    render();
+  } else if (data.type === 'bot') {
     showBotStatus(data.text);
   } else if (data.type === 'transport') {
     element('#live-status').textContent = data.text;
     element<HTMLButtonElement>('#connect').disabled = element<HTMLButtonElement>('#stop').disabled = true;
   } else if (data.type === 'snapshot') {
+    if (data.capabilities) showEulerAccess(data.capabilities);
     showBotStatus(data.botStatus || '');
     updateConnection(data);
     updateMode(data.mode === 'live');
@@ -83,11 +88,13 @@ element('#reviews').addEventListener('click', event => {
   const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-action]') : null;
   const message = state.messages.find(item => item.id === Number(button?.dataset.id));
   if (!button || !message || message.resolved) return;
+  if (state.liveMode && button.dataset.action !== 'ignore') return;
   const duration = button.parentElement?.querySelector('select')?.value || '5 minuten';
   message.resolved = true;
-  const line = button.dataset.action === 'mute'
+  const line = button.dataset.action === 'ban'
+    ? `DEMO: @${message.user} geblokkeerd. Er is niets naar TikTok verzonden.` : button.dataset.action === 'mute'
     ? `DEMO: @${message.user} gedempt voor ${duration}. Er is niets naar TikTok verzonden.`
-    : `@${message.user}: bericht genegeerd in de demo.`;
+    : `@${message.user}: bericht lokaal genegeerd.`;
   state.activity.unshift(line);
   if (state.activity.length > 100) state.activity.pop();
   toast(line);

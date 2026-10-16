@@ -44,7 +44,7 @@ test('mislukt botbericht laat chat verbonden en blijft zichtbaar na vernieuwen',
     events.push(event);
     session.receive(event);
     if (event.type === 'bot') finished();
-  }, async () => ({ TikTokLiveConnection: Fake }));
+  }, async () => ({ TikTokLiveConnection: Fake }), undefined, () => true);
   await live.connect();
   instance.emit('chat', { content: '!discord', user: { uniqueId: 'tester' } });
   await done;

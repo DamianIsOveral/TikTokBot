@@ -13,12 +13,19 @@ import { createAccessStore } from './auth/access-store.ts';
 import { createAuth } from './auth/service.ts';
 import { routeAccess } from './auth/access-routes.ts';
 import type { DiscordProvider } from './auth/discord.ts';
+import { createEulerAccess } from './euler-access.ts';
+import type { AccountReader } from './euler-access.ts';
+import { routeCapabilities } from './http/capability-routes.ts';
 
 export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, commands = createCommandStore(),
-  access = createAccessStore(config.discord.adminIds), provider?: DiscordProvider) {
+  access = createAccessStore(config.discord.adminIds), provider?: DiscordProvider, accountReader?: AccountReader) {
   const events = createEventStream();
   const session = createSession(events.broadcast);
-  const live = createLive(config, session.receive, loadConnector, () => commands.list());
+  const capabilities = createEulerAccess(config.options.signApiKey, value => session.receive({ type: 'capabilities', value }), accountReader);
+  const live = createLive(config, session.receive, loadConnector, () => commands.list(), capabilities.canSend);
+  void capabilities.refresh();
+  const rightsTimer = setInterval(() => { void capabilities.refresh(); }, 60_000);
+  rightsTimer.unref();
   const auth = createAuth(config.discord, access, events.disconnect, provider);
   const server = http.createServer(async (req, res) => {
     if (!secureRequest(req, res, config.port)) return;
@@ -41,13 +48,16 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
     }
     if (req.url?.split('?')[0] === '/login') { res.writeHead(302, { Location: '/' }).end(); return; }
     if (await routeAccess(req, res, access, user, () => { auth.revalidate(); events.disconnect(); })) return;
-    if (await routeCommands(req, res, commands, config.botEnabled)) return;
+    if (await routeCapabilities(req, res, capabilities)) return;
+    if (await routeCommands(req, res, commands, config.botEnabled, capabilities)) return;
     if (!routeApi(req, res, { config, live, session, events, authorizeEvents: () => !!auth.user(req) })) await serveAsset(req, res);
   });
   server.requestTimeout = 10_000;
   server.headersTimeout = 10_000;
   server.maxConnections = 50;
   async function close(): Promise<void> {
+    clearInterval(rightsTimer);
+    capabilities.close();
     events.close();
     await live.stop();
     await new Promise<void>(resolve => server.close(() => resolve()));

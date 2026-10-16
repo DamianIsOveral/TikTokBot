@@ -24,12 +24,15 @@ export function render(): void {
     .reverse().map(message => `<div class="card"><div class="cardtop"><div class="avatar">${avatar(message)}</div>
       <div class="cardbody"><time>${escapeHTML(message.time)}</time><strong>@${escapeHTML(message.user)}</strong>
       <p>${escapeHTML(message.text)}</p><span class="tag">${escapeHTML(classify(message.text, state.settings))}</span></div></div>
-      <div class="actions"><button class="mute" data-action="mute" data-id="${message.id}">♬ Dempen · demo</button>
+      <div class="actions"><button class="mute" data-action="mute" data-id="${message.id}" ${state.liveMode ? 'disabled' : ''}
+      title="${escapeHTML(state.liveMode ? state.capabilities?.moderation ? 'LIVE-koppeling nog niet aangesloten.' : 'Webcast Premium vereist voor LIVE-moderatie.' : 'Lokale demoactie')}">Dempen${state.liveMode ? '' : ' · demo'}</button>
+      <button data-action="ban" data-id="${message.id}" ${state.liveMode ? 'disabled' : ''}
+      title="${escapeHTML(state.liveMode ? state.capabilities?.moderation ? 'LIVE-koppeling nog niet aangesloten.' : 'Webcast Premium vereist voor LIVE-moderatie.' : 'Lokale demoactie')}">Ban${state.liveMode ? '' : ' · demo'}</button>
       <button data-action="ignore" data-id="${message.id}">Negeren</button>
-      <select aria-label="Demptijd voor ${escapeHTML(message.user)}"><option>5 minuten</option>
+      <select ${state.liveMode ? 'disabled' : ''} aria-label="Demptijd voor ${escapeHTML(message.user)}"><option>5 minuten</option>
       <option>30 minuten</option><option>Hele LIVE</option></select></div></div>`).join('')
     || '<div class="empty">✓ Geen berichten om te beoordelen.</div>';
-  element('#activity').textContent = state.activity[0] || 'Nog geen acties in deze demo.';
+  element('#activity').textContent = state.activity[0] || 'Nog geen lokale acties.';
   if (state.page === 'Overzicht' || state.page === 'Moderatie') renderPage(render);
 }
 
