@@ -1,0 +1,9 @@
+**/node_modules
+.git
+.env
+.env.*
+!.env.example
+.dev_docs
+.local-archive
+coverage
+*.log
