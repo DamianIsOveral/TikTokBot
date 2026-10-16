@@ -6,6 +6,7 @@ export function createSession(publish: (event: ServerEvent) => void, limit = 500
   let phase: Phase = 'idle';
   let nextId = 1;
   let messages: ChatEvent[] = [];
+  let botStatus: string | undefined;
 
   function receive(event: LiveEvent): void {
     if (event.type === 'status') {
@@ -14,8 +15,12 @@ export function createSession(publish: (event: ServerEvent) => void, limit = 500
       if (event.phase === 'connecting') {
         mode = 'live';
         messages = [];
+        botStatus = undefined;
       }
       publish({ ...event, phase, mode });
+    } else if (event.type === 'bot') {
+      botStatus = event.text;
+      publish(event);
     } else if (event.type === 'chat') {
       const message = { ...event, id: nextId++, time: new Date().toISOString() };
       messages.push(message);
@@ -26,7 +31,7 @@ export function createSession(publish: (event: ServerEvent) => void, limit = 500
 
   function snapshot(): Snapshot {
     return { type: 'snapshot', mode, phase, text: status,
-      messages: messages.map(message => ({ ...message })) };
+      messages: messages.map(message => ({ ...message })), botStatus };
   }
 
   return { receive, snapshot };

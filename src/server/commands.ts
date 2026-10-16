@@ -2,6 +2,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type { TikTokMessage } from './types.ts';
 import type { CommandDefinition } from '../shared/commands.ts';
 import { defaultCommands } from './command-defaults.ts';
+import { messageErrorText } from './message-errors.ts';
 
 interface CommandOptions {
   send: (text: string) => Promise<unknown>;
@@ -35,7 +36,7 @@ export function createCommands({ send, active, botUsername, report, wait = delay
         await send(text);
         nextSend = now() + 1000;
       }
-    } catch { report('Botbericht versturen mislukt.'); }
+    } catch (error) { report(messageErrorText(error)); }
     finally { busy = false; }
   };
 }

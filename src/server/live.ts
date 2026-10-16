@@ -36,7 +36,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       const active = () => connected && connection === current && attempt === generation;
       const command = createCommands({
         send: text => current!.sendMessage(text), active,
-        botUsername: config.botUsername, report, getCommands
+        botUsername: config.botUsername, report: text => broadcast({ type: 'bot', text }), getCommands
       });
       current.on('chat', (data: TikTokMessage) => {
         if (!active()) return;
@@ -45,6 +45,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
         if (config.botEnabled) void command(data);
       });
       current.on('error', (error: unknown) => {
+        if (error && typeof error === 'object' && 'info' in error && error.info === 'Failed to send message.') return;
         if (connection === current) report(connectionErrorMessage(error), 'error');
       });
       current.on('disconnected', () => {

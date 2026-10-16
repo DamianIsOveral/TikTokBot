@@ -1,4 +1,4 @@
-function errorRecords(error: unknown): Record<string, unknown>[] {
+export function errorRecords(error: unknown): Record<string, unknown>[] {
   const queue: unknown[] = [error];
   const seen = new Set<unknown>();
   const records: Record<string, unknown>[] = [];

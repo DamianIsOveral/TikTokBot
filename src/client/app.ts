@@ -27,10 +27,13 @@ function updateConnection(data: StatusEvent | Snapshot): void {
 }
 
 function onEvent(data: ClientEvent): void {
-  if (data.type === 'transport') {
+  if (data.type === 'bot') {
+    showBotStatus(data.text);
+  } else if (data.type === 'transport') {
     element('#live-status').textContent = data.text;
     element<HTMLButtonElement>('#connect').disabled = element<HTMLButtonElement>('#stop').disabled = true;
   } else if (data.type === 'snapshot') {
+    showBotStatus(data.botStatus || '');
     updateConnection(data);
     updateMode(data.mode === 'live');
     resetMessages();
@@ -40,11 +43,17 @@ function onEvent(data: ClientEvent): void {
     render();
   } else if (data.type === 'status') {
     updateConnection(data);
-    if (data.phase === 'connecting') { resetMessages(); updateMode(true); render(); }
+    if (data.phase === 'connecting') { showBotStatus(''); resetMessages(); updateMode(true); render(); }
   } else if (data.type === 'chat' && state.liveMode) {
     addMessage(data.user, data.text, displayTime(data.time));
     scheduleRender();
   }
+}
+
+function showBotStatus(text: string): void {
+  const node = element('#bot-status');
+  node.textContent = text;
+  node.classList.toggle('hidden', !text);
 }
 
 const connection = createConnection(onEvent);

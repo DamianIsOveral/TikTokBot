@@ -61,7 +61,7 @@ export function mountCommands(): void {
     find('[data-list]').replaceChildren();
     for (const command of settings.commands) addRow(command);
     find('[data-bot]').textContent = settings.botEnabled
-      ? 'Botantwoorden staan aan op de server. Ze werken zolang de TikTok-verbinding actief is, ook zonder geopend dashboard.'
+      ? 'Botverwerking staat aan op de server, ook zonder geopend dashboard. Verzenden vereist een actieve TikTok-verbinding en Euler-chatverzendrechten.'
       : 'Botantwoorden staan uit op de server. Stel BOT_ENABLED=true in .env in en herstart om echt te antwoorden.';
     find<HTMLButtonElement>('[data-save]').disabled = false;
     find<HTMLButtonElement>('[data-add]').disabled = false;
