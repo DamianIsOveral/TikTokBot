@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { createSession } from '../src/session.js';
-import { createApp } from '../src/server.js';
-import { readConfig } from '../src/config.js';
+import { createSession } from '../src/server/session.ts';
+import { createApp } from '../src/server/app.ts';
+import { readConfig } from '../src/server/config.ts';
 
 test('sessie bewaart maximaal 500 berichten en start een nieuwe chat bij verbinden', () => {
   const session = createSession(() => {});
@@ -14,7 +14,7 @@ test('sessie bewaart maximaal 500 berichten en start een nieuwe chat bij verbind
   const snapshot = session.snapshot();
   assert.equal(snapshot.messages.length, 500);
   assert.equal(snapshot.messages[0].text, '10');
-  assert.equal(snapshot.messages.at(-1).id, 510);
+  assert.equal(snapshot.messages.at(-1)!.id, 510);
   snapshot.messages[0].text = 'gewijzigd';
   assert.equal(session.snapshot().messages[0].text, '10');
   session.receive({ type: 'status', phase: 'stopped', text: 'Gestopt' });
@@ -25,20 +25,21 @@ test('sessie bewaart maximaal 500 berichten en start een nieuwe chat bij verbind
 });
 
 test('SSE levert bestaande chat na vernieuwen en stuurt nieuwe chat naar beide tabs', { timeout: 5000 }, async t => {
-  let connector;
+  let connector!: Fake;
   let connections = 0;
   class Fake extends EventEmitter {
     constructor() { super(); connector = this; }
     async connect() { connections++; }
     async disconnect() {}
+    async sendMessage() {}
   }
   const config = readConfig({});
   const app = createApp(config, async () => ({ TikTokLiveConnection: Fake }));
-  await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
-  config.port = app.server.address().port;
+  await new Promise<void>(resolve => app.server.listen(0, '127.0.0.1', resolve));
+  config.port = (app.server.address() as import('node:net').AddressInfo).port;
   t.after(() => app.close());
   const base = `http://127.0.0.1:${config.port}`;
-  const post = action => fetch(`${base}/api/${action}`, { method: 'POST',
+  const post = (action: string) => fetch(`${base}/api/${action}`, { method: 'POST',
     headers: { Origin: base, 'X-Requested-With': 'faynominaal' } });
   await post('connect');
   connector.emit('chat', { user: { uniqueId: 'tester' }, content: '<script>tekst</script>' });
@@ -47,7 +48,7 @@ test('SSE levert bestaande chat na vernieuwen en stuurt nieuwe chat naar beide t
     const controller = new AbortController();
     t.after(() => controller.abort());
     const response = await fetch(`${base}/api/events`, { signal: controller.signal });
-    const reader = response.body.getReader();
+    const reader = response.body!.getReader();
     let buffer = '';
     return async () => {
       while (!buffer.includes('\n\n')) {

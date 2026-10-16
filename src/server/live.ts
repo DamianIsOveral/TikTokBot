@@ -1,11 +1,16 @@
-import { createCommands } from './commands.js';
+import { createCommands } from './commands.ts';
+import type { AppConfig } from './config.ts';
+import type { Connector, ConnectorLoader, TikTokMessage } from './types.ts';
+import type { LiveEvent, Phase } from '../shared/events.ts';
+import { loadConnector } from './connector.ts';
 
-export function createLive(config, broadcast, load = () => import('tiktok-live-connector')) {
-  let connection;
-  let pending;
+export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => void,
+  load: ConnectorLoader = loadConnector) {
+  let connection: Connector | undefined;
+  let pending = false;
   let generation = 0;
   let status = 'Niet verbonden';
-  const report = (text, phase) => { status = text; broadcast({ type: 'status', text, phase }); };
+  const report = (text: string, phase?: Phase): void => { status = text; broadcast({ type: 'status', text, phase }); };
   async function stop() {
     generation++;
     const old = connection;
@@ -18,7 +23,7 @@ export function createLive(config, broadcast, load = () => import('tiktok-live-c
     const attempt = ++generation;
     pending = true;
     report(`Verbinding maken met @${config.username}…`, 'connecting');
-    let current;
+    let current: Connector | undefined;
     try {
       const { TikTokLiveConnection } = await load();
       if (attempt !== generation) return;
@@ -27,10 +32,10 @@ export function createLive(config, broadcast, load = () => import('tiktok-live-c
       let connected = false;
       const active = () => connected && connection === current && attempt === generation;
       const command = createCommands({
-        send: text => current.sendMessage(text), active,
+        send: text => current!.sendMessage(text), active,
         botUsername: config.botUsername, report
       });
-      current.on('chat', data => {
+      current.on('chat', (data: TikTokMessage) => {
         if (!active()) return;
         broadcast({ type: 'chat', user: String(data.user?.uniqueId || data.user?.displayId || data.uniqueId || 'onbekend').slice(0, 100),
           text: String(data.content ?? data.comment ?? '').slice(0, 2000) });

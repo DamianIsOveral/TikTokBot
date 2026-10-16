@@ -1,6 +1,116 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'"><title>Faynominaal LIVE Dashboard</title><link rel="stylesheet" href="styles.css"></head><body>
-<aside><div class="brand"><b class="logo">♪</b><div><strong>Faynominaal</strong><small>LIVE Dashboard</small></div></div><nav><button data-page="Overzicht">⌂ <span>Overzicht</span></button><button data-page="Livechat" class="active">☏ <span>Livechat</span></button><button data-page="Moderatie">◇ <span>Moderatie</span></button><button data-page="Filters">▽ <span>Filters</span></button><button data-page="Instellingen">⚙ <span>Instellingen</span></button></nav><div class="sidefoot"><i></i> Lokale webapp<br><small>Versie 0.3 · Web</small></div></aside>
-<main><header><div class="account"><div class="avatar hero">F</div><div><h1 id="channel">@faynominaal</h1><div class="muted"><span id="live-status" class="cyan">DEMOSTAND · Niet verbonden</span></div></div></div><div class="metrics"><article>♧ <div><small>Kijkers</small><strong>—</strong></div></article><article>☏ <div><small>Berichten</small><strong id="total">0</strong></div></article><article class="amber">△ <div><small>Te beoordelen</small><strong id="count">0</strong></div></article></div></header>
-<div class="demo">CONCEPT <span>Voorbeeldberichten. Moderatieacties worden alleen in deze demo verwerkt.</span><button id="demo" disabled>Demo</button><button id="connect">Verbinden</button><button id="stop" disabled>Stop</button><button id="add">＋ Testbericht</button></div>
-<section id="chatpage" class="columns"><article class="panel chatpanel"><div class="panelhead"><h2>Livechat</h2><select id="sort" aria-label="Sorteervolgorde"><option value="new">Nieuwste bovenaan</option><option value="old">Oudste bovenaan</option></select></div><input id="search" placeholder="⌕  Zoek gebruiker of bericht…" aria-label="Zoek gebruiker of bericht"><div id="chat" class="chat"></div><div class="panelbottom">Alleen markeren · Moderator beslist</div></article><article class="panel reviewpanel"><div class="panelhead"><div><h2>Verdachte berichten <b id="badge">3</b></h2><small>Gemarkeerd voor beoordeling</small></div></div><div id="tabs" class="tabs"><button class="selected" data-filter="Alle">Alle</button><button data-filter="Spam">Spam</button><button data-filter="Schelden">Schelden</button><button data-filter="Links">Links</button></div><div id="reviews" class="reviews"></div><footer><strong>♧ Recente moderatieactiviteit</strong><div id="activity">Nog geen acties in deze demo.</div></footer></article></section>
-<section id="otherpage" class="panel hidden"></section><div id="toast" role="status"></div></main><script src="live-client.js"></script><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'">
+<title>Faynominaal LIVE Dashboard</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<aside>
+<div class="brand">
+<b class="logo">♪</b>
+<div>
+<strong>Faynominaal</strong>
+<small>LIVE Dashboard</small>
+</div>
+</div>
+<nav>
+<button data-page="Overzicht">⌂ <span>Overzicht</span>
+</button>
+<button data-page="Livechat" class="active">☏ <span>Livechat</span>
+</button>
+<button data-page="Moderatie">◇ <span>Moderatie</span>
+</button>
+<button data-page="Filters">▽ <span>Filters</span>
+</button>
+<button data-page="Instellingen">⚙ <span>Instellingen</span>
+</button>
+</nav>
+<div class="sidefoot">
+<i>
+</i> Lokale webapp<br>
+<small>Versie 0.3 · Web</small>
+</div>
+</aside>
+<main>
+<header>
+<div class="account">
+<div class="avatar hero">F</div>
+<div>
+<h1 id="channel">@faynominaal</h1>
+<div class="muted">
+<span id="live-status" class="cyan">DEMOSTAND · Niet verbonden</span>
+</div>
+</div>
+</div>
+<div class="metrics">
+<article>♧ <div>
+<small>Kijkers</small>
+<strong>—</strong>
+</div>
+</article>
+<article>☏ <div>
+<small>Berichten</small>
+<strong id="total">0</strong>
+</div>
+</article>
+<article class="amber">△ <div>
+<small>Te beoordelen</small>
+<strong id="count">0</strong>
+</div>
+</article>
+</div>
+</header>
+<div class="demo">CONCEPT <span>Voorbeeldberichten. Moderatieacties worden alleen in deze demo verwerkt.</span>
+<button id="demo" disabled>Demo</button>
+<button id="connect">Verbinden</button>
+<button id="stop" disabled>Stop</button>
+<button id="add">＋ Testbericht</button>
+</div>
+<section id="chatpage" class="columns">
+<article class="panel chatpanel">
+<div class="panelhead">
+<h2>Livechat</h2>
+<select id="sort" aria-label="Sorteervolgorde">
+<option value="new">Nieuwste bovenaan</option>
+<option value="old">Oudste bovenaan</option>
+</select>
+</div>
+<input id="search" placeholder="⌕  Zoek gebruiker of bericht…" aria-label="Zoek gebruiker of bericht">
+<div id="chat" class="chat">
+</div>
+<div class="panelbottom">Alleen markeren · Moderator beslist</div>
+</article>
+<article class="panel reviewpanel">
+<div class="panelhead">
+<div>
+<h2>Verdachte berichten <b id="badge">3</b>
+</h2>
+<small>Gemarkeerd voor beoordeling</small>
+</div>
+</div>
+<div id="tabs" class="tabs">
+<button class="selected" data-filter="Alle">Alle</button>
+<button data-filter="Spam">Spam</button>
+<button data-filter="Schelden">Schelden</button>
+<button data-filter="Links">Links</button>
+</div>
+<div id="reviews" class="reviews">
+</div>
+<footer>
+<strong>♧ Recente moderatieactiviteit</strong>
+<div id="activity">Nog geen acties in deze demo.</div>
+</footer>
+</article>
+</section>
+<section id="otherpage" class="panel hidden">
+</section>
+<div id="toast" role="status">
+</div>
+</main>
+<script type="module" src="/assets/app.js">
+</script>
+</body>
+</html>

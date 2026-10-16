@@ -7,7 +7,7 @@ $locked = $false
 try {
     Set-Location -LiteralPath $projectRoot
     $nodePath = (Get-Command node -ErrorAction Stop).Source
-    $dashboardUrl = & $nodePath --env-file-if-exists=.env scripts/dashboard-url.mjs
+    $dashboardUrl = & $nodePath --env-file-if-exists=.env scripts/dashboard-url.ts
     if ($LASTEXITCODE -ne 0) { throw 'Controleer de instellingen in .env.' }
     $dashboardUrl = ($dashboardUrl | Select-Object -Last 1).Trim()
     $portNumber = ([Uri]$dashboardUrl).Port
@@ -26,9 +26,12 @@ try {
         if (-not (Test-Path -LiteralPath 'node_modules/tiktok-live-connector')) {
             throw 'Dependencies ontbreken. Voer eerst npm ci uit in de projectmap.'
         }
+        $npmPath = (Get-Command npm.cmd -ErrorAction Stop).Source
+        & $npmPath run build
+        if ($LASTEXITCODE -ne 0) { throw 'Dashboard compileren mislukt. Controleer de TypeScript-installatie met npm ci.' }
         $logDirectory = Join-Path $projectRoot '.local-archive/launcher'
         New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
-        $serverProcess = Start-Process -FilePath $nodePath -ArgumentList @('--env-file-if-exists=.env', 'src/server.js') -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $logDirectory 'server.log') -RedirectStandardError (Join-Path $logDirectory 'server-error.log')
+        $serverProcess = Start-Process -FilePath $nodePath -ArgumentList @('--env-file-if-exists=.env', 'src/server/main.ts') -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $logDirectory 'server.log') -RedirectStandardError (Join-Path $logDirectory 'server-error.log')
         $ready = $false
         for ($attempt = 0; $attempt -lt 60; $attempt++) {
             if (Test-Dashboard) { $ready = $true; break }

@@ -1,11 +1,13 @@
-export function createSession(publish, limit = 500) {
-  let mode = 'demo';
-  let status = 'Niet verbonden';
-  let phase = 'idle';
-  let nextId = 1;
-  let messages = [];
+import type { Mode, Phase, ChatEvent, LiveEvent, ServerEvent, Snapshot } from '../shared/events.ts';
 
-  function receive(event) {
+export function createSession(publish: (event: ServerEvent) => void, limit = 500) {
+  let mode: Mode = 'demo';
+  let status = 'Niet verbonden';
+  let phase: Phase = 'idle';
+  let nextId = 1;
+  let messages: ChatEvent[] = [];
+
+  function receive(event: LiveEvent): void {
     if (event.type === 'status') {
       status = event.text;
       phase = event.phase || phase;
@@ -22,7 +24,7 @@ export function createSession(publish, limit = 500) {
     }
   }
 
-  function snapshot() {
+  function snapshot(): Snapshot {
     return { type: 'snapshot', mode, phase, text: status,
       messages: messages.map(message => ({ ...message })) };
   }

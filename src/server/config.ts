@@ -1,4 +1,15 @@
-export function readConfig(env = process.env) {
+import type { ConnectorOptions } from './types.ts';
+
+export interface AppConfig {
+  host: string;
+  port: number;
+  username: string;
+  botEnabled: boolean;
+  botUsername: string;
+  options: ConnectorOptions;
+}
+
+export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const host = env.HOST || '127.0.0.1';
   if (!['127.0.0.1', '::1', 'localhost'].includes(host)) {
     throw new Error('HOST moet lokaal blijven totdat authenticatie is geïmplementeerd.');
@@ -16,6 +27,6 @@ export function readConfig(env = process.env) {
   return { host, port, username, botEnabled, botUsername: env.BOT_USERNAME || 'faynominaalbot',
     options: credentials.every(Boolean) ? {
       processInitialData: false, signApiKey: credentials[0], authenticateWs: true,
-      session: { cookie: { type: 'cookie', value: { sessionId: credentials[1], ttTargetIdc: credentials[2] } } }
+      session: { cookie: { type: 'cookie', value: { sessionId: credentials[1]!, ttTargetIdc: credentials[2]! } } }
     } : { processInitialData: false } };
 }
