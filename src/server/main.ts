@@ -2,10 +2,12 @@ import { readConfig } from './config.ts';
 import { createApp } from './app.ts';
 import { loadCommandStore } from './command-store.ts';
 import { fileURLToPath } from 'node:url';
+import { loadAccessStore } from './auth/access-store.ts';
 
 const config = readConfig();
 const commands = await loadCommandStore(fileURLToPath(new URL('../../data/commands.json', import.meta.url)));
-const app = createApp(config, undefined, commands);
+const access = await loadAccessStore(fileURLToPath(new URL('../../data/access.json', import.meta.url)), config.discord.adminIds);
+const app = createApp(config, undefined, commands, access);
 app.server.listen(config.port, config.host, () => {
   console.log(`Dashboard: http://${config.host === '::1' ? '[::1]' : config.host}:${config.port}`);
 });

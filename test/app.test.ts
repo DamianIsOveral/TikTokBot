@@ -5,7 +5,7 @@ import http from 'node:http';
 import { readConfig } from '../src/server/config.ts';
 import { createCommands } from '../src/server/commands.ts';
 import { createLive } from '../src/server/live.ts';
-import { createApp } from '../src/server/app.ts';
+import { createTestApp as createApp, signIn, authenticatedFetch } from './auth-fixture.ts';
 import { loadConnector } from '../src/server/connector.ts';
 
 test('connectoradapter laadt de SDK zonder TikTok-verbinding', async () => {
@@ -66,6 +66,7 @@ test('HTTP beschermt secrets en weigert cross-origin mutaties', async t => {
   config.port = (app.server.address() as import('node:net').AddressInfo).port;
   t.after(() => app.close());
   const base = `http://127.0.0.1:${config.port}`;
+  const fetch = authenticatedFetch(await signIn(config));
   const home = await fetch(base);
   assert.equal(home.status, 200);
   assert.match(home.headers.get('content-security-policy') || '', /frame-ancestors 'none'/);
@@ -83,7 +84,7 @@ test('HTTP beschermt secrets en weigert cross-origin mutaties', async t => {
       queue.push(new URL(match[1], base + path).pathname);
     }
   }
-  assert.equal(modules.size, 9);
+  assert.equal(modules.size, 11);
   for (const path of ['/.env', '/src/server/config.ts', '/assets/app.ts', '/.git/config', '/.local-archive/faynominaalbot/.env']) {
     assert.equal((await fetch(base + path)).status, 404);
   }

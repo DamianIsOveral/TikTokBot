@@ -10,6 +10,7 @@ interface Services {
   live: ReturnType<typeof createLive>;
   session: ReturnType<typeof createSession>;
   events: ReturnType<typeof createEventStream>;
+  authorizeEvents: () => boolean;
 }
 
 export function routeApi(req: IncomingMessage, res: ServerResponse, services: Services): boolean {
@@ -28,7 +29,7 @@ export function routeApi(req: IncomingMessage, res: ServerResponse, services: Se
     json(session.snapshot()); return true;
   }
   if (req.url === '/api/events' && req.method === 'GET') {
-    events.subscribe(req, res, session.snapshot()); return true;
+    events.subscribe(req, res, session.snapshot(), services.authorizeEvents); return true;
   }
   if (req.url === '/api/connect' || req.url === '/api/stop') {
     if (allowMutation(req, res)) {

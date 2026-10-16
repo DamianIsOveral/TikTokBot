@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { createSession } from '../src/server/session.ts';
-import { createApp } from '../src/server/app.ts';
+import { createTestApp as createApp, signIn, authenticatedFetch } from './auth-fixture.ts';
 import { readConfig } from '../src/server/config.ts';
 
 test('sessie bewaart maximaal 500 berichten en start een nieuwe chat bij verbinden', () => {
@@ -39,6 +39,7 @@ test('SSE levert bestaande chat na vernieuwen en stuurt nieuwe chat naar beide t
   config.port = (app.server.address() as import('node:net').AddressInfo).port;
   t.after(() => app.close());
   const base = `http://127.0.0.1:${config.port}`;
+  const fetch = authenticatedFetch(await signIn(config));
   const post = (action: string) => fetch(`${base}/api/${action}`, { method: 'POST',
     headers: { Origin: base, 'X-Requested-With': 'faynominaal' } });
   await post('connect');

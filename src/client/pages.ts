@@ -2,10 +2,13 @@ import { element, escapeHTML, toast } from './dom.js';
 import { saveSettings } from './filters.js';
 import { pending, state } from './model.js';
 import { mountCommands } from './commands.js';
+import { mountAccess } from './access.js';
 
 export function renderPage(onChange: () => void): void {
   const node = element('#otherpage');
-  if (state.page === 'Commands') {
+  if (state.page === 'Toegang') {
+    mountAccess();
+  } else if (state.page === 'Commands') {
     mountCommands();
   } else if (state.page === 'Overzicht') {
     node.innerHTML = `<h2>Overzicht</h2><p>Faynominaal LIVE Dashboard · demo of LIVE-chat</p>

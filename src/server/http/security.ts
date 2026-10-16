@@ -7,7 +7,11 @@ export function secureRequest(req: IncomingMessage, res: ServerResponse, port: n
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Cache-Control', 'no-store');
   const hosts = ['127.0.0.1', 'localhost', '[::1]'].map(host => `${host}:${port}`);
-  if (!hosts.includes(req.headers.host || '') || req.headers['sec-fetch-site'] === 'cross-site') {
+  const path = req.url?.split('?')[0];
+  const callback = req.method === 'GET' && path === '/auth/discord/callback';
+  const navigation = req.method === 'GET' && ['/', '/login'].includes(path || '')
+    && req.headers['sec-fetch-mode'] === 'navigate' && req.headers['sec-fetch-dest'] === 'document';
+  if (!hosts.includes(req.headers.host || '') || (req.headers['sec-fetch-site'] === 'cross-site' && !callback && !navigation)) {
     res.writeHead(403).end();
     return false;
   }

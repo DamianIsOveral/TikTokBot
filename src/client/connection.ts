@@ -1,4 +1,5 @@
 import type { ClientEvent, PublicConfig, ServerEvent } from '../shared/events.js';
+import { checkSession } from './auth.js';
 
 export function createConnection(onEvent: (event: ClientEvent) => void) {
   let stream: EventSource | undefined;
@@ -6,7 +7,10 @@ export function createConnection(onEvent: (event: ClientEvent) => void) {
     stream?.close();
     stream = new EventSource('/api/events');
     stream.onmessage = event => onEvent(JSON.parse(event.data) as ServerEvent);
-    stream.onerror = () => onEvent({ type: 'transport', text: 'Serververbinding onderbroken. Opnieuw verbinden…' });
+    stream.onerror = () => {
+      onEvent({ type: 'transport', text: 'Serververbinding onderbroken. Opnieuw verbinden…' });
+      void checkSession().then(valid => { if (!valid) stream?.close(); });
+    };
   }
   async function request(action: 'connect' | 'stop'): Promise<void> {
     const response = await fetch(`/api/${action}`, {

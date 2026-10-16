@@ -7,6 +7,7 @@ import type { Category } from './filters.js';
 import { createConnection } from './connection.js';
 import { render, scheduleRender } from './render.js';
 import { renderPage } from './pages.js';
+import { requireUser } from './auth.js';
 
 function updateMode(live: boolean): void {
   state.liveMode = live;
@@ -102,11 +103,13 @@ document.querySelectorAll<HTMLButtonElement>('[data-page]').forEach(button => {
   };
 });
 
-loadDemo();
-render();
-connection.subscribe();
-void connection.config().then(config => {
+if (await requireUser()) {
+  loadDemo();
+  render();
+  connection.subscribe();
+  void connection.config().then(config => {
   state.username = config.username;
   element('#channel').textContent = `@${config.username}`;
   if (state.page === 'Instellingen') renderPage(render);
-}).catch(() => {});
+  }).catch(() => {});
+}

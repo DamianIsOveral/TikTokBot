@@ -7,7 +7,7 @@ import type { AddressInfo } from 'node:net';
 import { createCommands } from '../src/server/commands.ts';
 import { createCommandStore, loadCommandStore } from '../src/server/command-store.ts';
 import { validateCommands } from '../src/server/command-validation.ts';
-import { createApp } from '../src/server/app.ts';
+import { createTestApp as createApp, signIn, authenticatedFetch } from './auth-fixture.ts';
 import { readConfig } from '../src/server/config.ts';
 import { EventEmitter } from 'node:events';
 
@@ -30,6 +30,7 @@ test('bot antwoordt op de server zonder geopend dashboard of SSE-client', { time
   config.port = (app.server.address() as AddressInfo).port;
   t.after(() => app.close());
   const base = `http://127.0.0.1:${config.port}`;
+  const fetch = authenticatedFetch(await signIn(config));
   await fetch(base + '/api/connect', { method: 'POST', headers: { Origin: base, 'X-Requested-With': 'faynominaal' } });
   connector.emit('chat', { user: { uniqueId: 'kijker' }, content: '!test' });
   assert.equal(await sent, 'Zonder dashboard');
@@ -115,6 +116,7 @@ test('commands-API beschermt writes en geeft validatiefouten en revisieconflicte
   config.port = (app.server.address() as AddressInfo).port;
   t.after(() => app.close());
   const base = `http://127.0.0.1:${config.port}`;
+  const fetch = authenticatedFetch(await signIn(config));
   const url = base + '/api/commands';
   const initial = await (await fetch(url)).json();
   assert.equal(initial.botEnabled, false);

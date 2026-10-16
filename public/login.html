@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Inloggen · Faynominaal Dashboard</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="login-page">
+  <main class="login-panel panel">
+    <div class="brand"><b class="logo">♪</b><div><strong>Faynominaal</strong><small>LIVE Dashboard</small></div></div>
+    <h1>Log in met Discord</h1>
+    <p>Alleen Discord-accounts die door een beheerder zijn toegevoegd krijgen toegang.</p>
+    <p id="login-message" role="status">Loginstatus controleren…</p>
+    <a id="discord-login" class="login-button hidden" href="/auth/login">Doorgaan met Discord</a>
+    <p class="muted">We vragen alleen je Discord-identiteit op. Je Discord-wachtwoord wordt niet met dit dashboard gedeeld.</p>
+  </main>
+  <script type="module" src="/assets/login.js"></script>
+</body>
+</html>

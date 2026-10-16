@@ -3,7 +3,7 @@ import type { Category, FilterSettings } from './filters.js';
 import { classify, loadSettings } from './filters.js';
 import { displayTime } from './dom.js';
 
-export type Page = 'Overzicht' | 'Livechat' | 'Moderatie' | 'Filters' | 'Commands' | 'Instellingen';
+export type Page = 'Overzicht' | 'Livechat' | 'Moderatie' | 'Filters' | 'Commands' | 'Toegang' | 'Instellingen';
 export interface Message { id: number; user: string; text: string; time: string; resolved: boolean }
 interface DashboardState {
   settings: FilterSettings;
