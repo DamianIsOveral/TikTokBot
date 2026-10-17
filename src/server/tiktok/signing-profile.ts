@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import { validateModerationSigning } from './moderation-spec.ts';
 
 export const signingSdkVersion = '1.0.0.417';
 export const signingRevision = 'a94d9d26602163a0f4e0e88ce26c633c6f50a034';
@@ -26,7 +27,8 @@ export const signingUserAgent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537
 export const signingFields = ['X-Dynosaur', 'msToken', 'X-Bogus', 'X-Gnarly'] as const;
 export const signingAssetPaths = signingAssets.map(asset => fileURLToPath(new URL(asset.name, signingDirectory)));
 
-export interface SigningInput { url: string; userAgent: string; msToken?: string; cookie?: string; method?: 'POST'; body?: string }
+export interface SigningInput { url: string; userAgent: string; msToken?: string; cookie?: string; method?: 'POST'; body?: string;
+  contentType?: 'application/json' | 'application/x-www-form-urlencoded' }
 export interface SigningResult { signedUrl: string; signMs: number; rssMiB: number }
 export type DirectRequestSigner = (input: SigningInput) => Promise<SigningResult>;
 
@@ -39,15 +41,17 @@ export function assertSigningVersion(html: string): void {
 
 export function validateSigningInput(input: SigningInput): void {
   const url = new URL(input.url);
-  if (url.origin !== 'https://webcast.tiktok.com' || url.pathname !== '/webcast/room/chat/'
+  if (url.origin !== 'https://webcast.tiktok.com'
     || url.username || url.password || url.hash || input.url.length > 8192
-    || !/^\d{10,25}$/.test(url.searchParams.get('room_id') || '')
     || signingFields.some(name => url.searchParams.has(name))
     || !input.userAgent || input.userAgent.length > 512 || /[\r\n]/.test(input.userAgent)
     || (input.cookie !== undefined && (typeof input.cookie !== 'string' || input.cookie.length > 8192 || /[\r\n\x00]/.test(input.cookie)))
     || (input.msToken !== undefined && (!/^[\w=+/-]{1,1024}$/.test(input.msToken)))) {
     throw new Error('Ongeldige invoer voor de lokale ondertekening.');
   }
+  if (validateModerationSigning(url, input.method, input.body, input.contentType)) return;
+  if (url.pathname !== '/webcast/room/chat/' || !/^\d{10,25}$/.test(url.searchParams.get('room_id') || '')
+    || (input.contentType !== undefined && input.contentType !== 'application/json')) throw new Error('Onbekende chataanvraag.');
   if (input.method !== undefined || input.body !== undefined) {
     if (input.method !== 'POST' || typeof input.body !== 'string' || input.body.length > 4096) throw new Error('Ongeldige POST-context.');
     const body = JSON.parse(input.body);

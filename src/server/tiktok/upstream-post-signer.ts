@@ -17,10 +17,11 @@ export function signPostWithUpstream(bootstrap: string, bundle: string, input: S
   if (prepared?.ok !== true || prepared.error) throw new Error('Ondertekenaar niet gereed.');
   context.__url = input.url;
   context.__body = input.body;
+  context.__contentType = input.contentType || 'application/json';
   const signed: unknown = vm.runInContext(`
     __ttlCaptured = null;
     __ttlPrepared.w.fetch(__url, {
-      method: 'POST', body: __body, headers: { 'Content-Type': 'application/json' }
+      method: 'POST', body: __body, headers: { 'Content-Type': __contentType }
     });
     __ttlCaptured;
   `, context, options);

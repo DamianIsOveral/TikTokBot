@@ -4,9 +4,10 @@ import type { DirectRequestSigner } from './signing-profile.ts';
 import { addBrowserParameters, inspectBrowserContext, readBrowserContext } from './browser-context.ts';
 import type { BrowserContext } from './browser-context.ts';
 import { createSessionCookies } from './session-cookies.ts';
+import { createDirectModeration } from './moderation-client.ts';
 
 export interface DirectCredentials { sessionId: string; targetIdc: string; botUsername: string; msToken?: string; verifyFp?: string }
-export type DirectFailure = 'session' | 'identity' | 'challenge' | 'csrf' | 'signing' | 'signing-context' | 'signing-version' | 'rejected' | 'empty' | 'network' | 'response' | 'inactive';
+export type DirectFailure = 'session' | 'identity' | 'challenge' | 'csrf' | 'signing' | 'signing-context' | 'signing-version' | 'rejected' | 'empty' | 'network' | 'response' | 'inactive' | 'permission' | 'target-role';
 
 export class DirectTikTokError extends Error {
   readonly kind: DirectFailure;
@@ -40,7 +41,9 @@ export function directErrorText(error: unknown): string {
     empty: 'TikTok geeft een leeg antwoord. De rechtstreekse actie is niet bevestigd.',
     network: 'TikTok is rechtstreeks niet bereikbaar. Er wordt niet automatisch opnieuw verstuurd.',
     response: 'TikTok geeft een onbekend antwoord. De rechtstreekse actie is niet bevestigd.',
-    inactive: 'Botbericht gestopt omdat de LIVE-verbinding of verzendtoegang niet meer actief is.'
+    inactive: 'Actie gestopt omdat de LIVE-verbinding of toegang niet meer actief is.',
+    permission: 'Het botaccount heeft geen bevestigde LIVE-rechten voor deze moderatieactie.',
+    'target-role': 'TikTok staat deze moderatieactie op een moderator niet toe.'
   };
   return messages[kind];
 }
@@ -61,6 +64,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
   if (credentials.msToken) cookies.set('msToken', credentials.msToken);
   if (credentials.verifyFp) cookies.set('s_v_web_id', credentials.verifyFp);
   let verifiedUntil = 0;
+  let botUserId = '';
   let csrfToken = '';
   let deviceId = '';
   let preparedFor = '';
@@ -69,7 +73,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
   const userAgent = options.signRequest ? signingUserAgent
     : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
-  async function raw(url: URL, method: 'GET' | 'POST' | 'HEAD', referer: string, body?: string): Promise<Response> {
+  async function raw(url: URL, method: 'GET' | 'POST' | 'HEAD', referer: string, body?: string, contentType?: string): Promise<Response> {
     if (!['https://www.tiktok.com', 'https://webcast.tiktok.com'].includes(url.origin)) {
       throw new DirectTikTokError('response');
     }
@@ -84,7 +88,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
           'User-Agent': userAgent,
           Accept: 'application/json', Referer: referer,
           ...(method !== 'GET' ? { Origin: 'https://www.tiktok.com' } : {}),
-          ...(method === 'POST' ? { 'Content-Type': options.signRequest ? 'application/json' : 'application/x-www-form-urlencoded' } : {}),
+          ...(method === 'POST' ? { 'Content-Type': contentType || (options.signRequest ? 'application/json' : 'application/x-www-form-urlencoded') } : {}),
           ...(method === 'POST' && !options.signRequest && csrfToken ? { 'tt-csrf-token': csrfToken } : {}),
           ...(method === 'POST' && options.signRequest && webcastCsrf ? { 'x-secsdk-csrf-token': webcastCsrf.token } : {}),
           ...(method === 'HEAD' ? { 'x-secsdk-csrf-request': '1', 'x-secsdk-csrf-version': '1.2.22' } : {}),
@@ -128,9 +132,9 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     return text;
   }
 
-  async function call(url: URL, method: 'GET' | 'POST', referer: string, body?: string): Promise<JsonObject> {
-    const response = await raw(url, method, referer, body);
-    const text = await readText(response, 65_536);
+  async function call(url: URL, method: 'GET' | 'POST', referer: string, body?: string, contentType?: string, limit = 65_536): Promise<JsonObject> {
+    const response = await raw(url, method, referer, body, contentType);
+    const text = await readText(response, limit);
     try { return object(JSON.parse(text)); }
     catch { throw new DirectTikTokError('response', response.status); }
   }
@@ -145,6 +149,9 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     if (options.signRequest && ((credentials.msToken && !cookies.get('msToken'))
       || (credentials.verifyFp && !cookies.get('s_v_web_id')))) throw new DirectTikTokError('signing-context');
     verifiedUntil = Date.now() + 5 * 60_000;
+    const exactId = data.user_id_str ?? data.user_id;
+    botUserId = typeof exactId === 'string' && /^\d{1,25}$/.test(exactId) ? exactId
+      : typeof exactId === 'number' && Number.isSafeInteger(exactId) && exactId > 0 ? String(exactId) : '';
     preparedFor = '';
   }
 
@@ -246,5 +253,51 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     return { messageId: typeof id === 'string' && /^\d+$/.test(id) ? id : null };
   }
 
-  return { verifyIdentity, resolveRoomId, inspectMessage, sendMessage };
+  async function readProfile(username: string) {
+    if (!/^[\w.]{1,24}$/.test(username)) throw new DirectTikTokError('response');
+    const response = await raw(new URL(`https://www.tiktok.com/@${username}`), 'GET', 'https://www.tiktok.com/');
+    const html = await readText(response, 2_000_000);
+    try {
+      const match = html.match(/<script[^>]*id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/);
+      const scope = object(object(JSON.parse(match?.[1] || '')).__DEFAULT_SCOPE__);
+      const user = object(object(object(scope['webapp.user-detail']).userInfo).user);
+      if (typeof user.uniqueId !== 'string' || user.uniqueId.toLowerCase() !== username.toLowerCase()
+        || typeof user.id !== 'string' || !/^\d{1,25}$/.test(user.id)
+        || typeof user.secUid !== 'string' || !/^[\w.-]{1,256}$/.test(user.secUid)) throw new Error();
+      return { userId: user.id, secUid: user.secUid, username: user.uniqueId };
+    } catch { throw new DirectTikTokError('response'); }
+  }
+
+  const moderation = createDirectModeration({ verifyIdentity, readProfile, resolveRoomId, botUserId: () => botUserId,
+    async request(spec, username, active = () => true) {
+      if (!options.signRequest) throw new DirectTikTokError('signing');
+      if (Date.now() >= verifiedUntil) await verifyIdentity();
+      if (preparedFor !== username) await prepareLive(username);
+      const url = new URL(spec.path, 'https://webcast.tiktok.com');
+      url.search = new URLSearchParams({ aid: '1988', app_name: 'tiktok_web', device_platform: 'web_pc', device_id: deviceId, ...spec.query }).toString();
+      addBrowserParameters(url, userAgent, browserContext, cookies.get('s_v_web_id'));
+      if (spec.method === 'POST' && !webcastCsrf) {
+        const response = await raw(new URL(spec.path, url.origin), 'HEAD', `https://www.tiktok.com/@${username}/live`);
+        webcastCsrf = parseWebcastCsrf(response.headers.get('x-ware-csrf-token'));
+      }
+      const input = { url: url.href, userAgent, msToken: cookies.get('msToken'),
+        cookie: [...cookies].map(([key, value]) => `${key}=${value}`).join('; '),
+        method: spec.method === 'POST' ? 'POST' as const : undefined, body: spec.body, contentType: spec.contentType };
+      let signedUrl: string;
+      try { signedUrl = (await options.signRequest(input)).signedUrl; validateSignedUrl(input, signedUrl); }
+      catch { throw new DirectTikTokError('signing'); }
+      jar.prune();
+      if (!input.msToken || input.msToken !== cookies.get('msToken')) throw new DirectTikTokError('signing-context');
+      if (!active()) throw new DirectTikTokError('inactive');
+      const result = await call(new URL(signedUrl), spec.method || 'GET', `https://www.tiktok.com/@${username}/live`, spec.body, spec.contentType, 512_000);
+      if (result.status_code !== 0) {
+        const data = object(result.data);
+        const prompt = typeof data.prompts === 'string' ? data.prompts.slice(0, 1000) : '';
+        throw new DirectTikTokError(/moderator|administrator/i.test(prompt) ? 'target-role' : 'rejected', 200,
+          typeof result.status_code === 'number' ? result.status_code : undefined);
+      }
+      return result;
+    }
+  });
+  return { verifyIdentity, resolveRoomId, inspectMessage, sendMessage, moderation };
 }

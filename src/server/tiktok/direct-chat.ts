@@ -3,6 +3,7 @@ import type { DirectCredentials } from './direct-client.ts';
 import { createDirectClient, DirectTikTokError, directErrorText } from './direct-client.ts';
 import { createHeadlessSigner } from './headless-signer.ts';
 import type { DirectRequestSigner } from './signing-profile.ts';
+import { createOperationQueue } from '../operation-queue.ts';
 
 export interface DirectChatOptions {
   request?: typeof fetch;
@@ -13,6 +14,7 @@ export interface DirectChatOptions {
 export function createDirectChat(credentials: DirectCredentials, username: string,
   publish: (value: ChatCapabilities) => void, options: DirectChatOptions = {}) {
   const now = options.now || Date.now;
+  const run = createOperationQueue();
   const controller = new AbortController();
   const request: typeof fetch = (input, init) => (options.request || fetch)(input, {
     ...init, signal: AbortSignal.any([controller.signal, ...(init?.signal ? [init.signal] : [])])
@@ -55,8 +57,8 @@ export function createDirectChat(credentials: DirectCredentials, username: strin
         client = next;
         sendFailed = false;
         validUntil = now() + 300_000;
-        return update({ state: 'available', chat: true, moderation: false, checkedAt,
-          reason: 'Rechtstreekse TikTok-chat actief; botsessie gecontroleerd. LIVE-moderatie is nog niet aangesloten.' });
+        return update({ state: 'available', chat: true, moderation: value.moderation, checkedAt,
+          reason: 'Rechtstreekse TikTok-chat actief; botsessie gecontroleerd. Moderatierechten worden per LIVE gecontroleerd.' });
       } catch (error) {
         if (closed || attempt !== revision) return snapshot();
         client = undefined;
@@ -86,5 +88,16 @@ export function createDirectChat(credentials: DirectCredentials, username: strin
       throw error;
     }
   }
-  return { snapshot, refresh, canSend, send, close: () => { closed = true; revision++; client = undefined; controller.abort(); } };
+  async function withModeration<T>(operation: (moderation: ReturnType<typeof createDirectClient>['moderation']) => Promise<T>) {
+    return run(async () => {
+      if (!client || !canSend()) throw new DirectTikTokError('inactive');
+      return operation(client.moderation);
+    });
+  }
+  function setModerationAvailable(allowed: boolean) {
+    if (value.moderation !== allowed) update({ ...value, moderation: allowed && canSend() });
+  }
+  return { snapshot, refresh, canSend, send: (text: string, roomId: string | undefined, active: () => boolean) => run(() => send(text, roomId, active)),
+    withModeration, setModerationAvailable, close: () => { closed = true; revision++; client = undefined; controller.abort(); } };
 }
+export type DirectChat = ReturnType<typeof createDirectChat>;

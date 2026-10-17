@@ -14,6 +14,8 @@ export interface IncomingChat {
   type: 'chat';
   user: string;
   text: string;
+  userId?: string;
+  secUid?: string;
 }
 
 export interface BotEvent { type: 'bot'; text: string }

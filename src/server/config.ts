@@ -2,6 +2,7 @@ import type { ConnectorOptions } from './types.ts';
 import { readDiscordConfig } from './auth/config.ts';
 import type { DiscordConfig } from './auth/config.ts';
 import type { DirectCredentials } from './tiktok/direct-client.ts';
+import { readSecretEnvironment } from './secret-env.ts';
 
 export interface AppConfig {
   host: string;
@@ -10,12 +11,16 @@ export interface AppConfig {
   botEnabled: boolean;
   botUsername: string;
   chatTransport: 'euler' | 'direct';
+  autoReconnect: boolean;
+  autoConnect: boolean;
+  moderationEnabled: boolean;
   directCredentials?: DirectCredentials;
   options: ConnectorOptions;
   discord: DiscordConfig;
 }
 
 export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+  env = readSecretEnvironment(env);
   const host = env.HOST || '127.0.0.1';
   if (!['127.0.0.1', '::1', 'localhost'].includes(host)) {
     throw new Error('HOST moet lokaal blijven totdat authenticatie is geïmplementeerd.');
@@ -38,6 +43,8 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error('Directe chat vereist de TikTok/Euler-instellingen en botcookies TIKTOK_MS_TOKEN/TIKTOK_VERIFY_FP.');
   }
   return { host, port, username, botEnabled, botUsername, chatTransport,
+    autoReconnect: env.LIVE_AUTO_RECONNECT !== 'false', autoConnect: env.LIVE_AUTO_CONNECT === 'true',
+    moderationEnabled: env.TIKTOK_MODERATION_ENABLED === 'true',
     directCredentials: chatTransport === 'direct' ? { sessionId: credentials[1]!, targetIdc: credentials[2]!, botUsername,
       msToken: env.TIKTOK_MS_TOKEN, verifyFp: env.TIKTOK_VERIFY_FP } : undefined,
     discord: readDiscordConfig(env, host, port),

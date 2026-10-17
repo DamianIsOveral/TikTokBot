@@ -1,4 +1,5 @@
 import type { CommandDocument, CommandDefinition } from '../shared/commands.ts';
+import { planResponses } from '../shared/command-policy.ts';
 
 export class CommandError extends Error {
   status: number;
@@ -26,11 +27,13 @@ export function validateCommands(value: unknown): CommandDocument {
       throw new CommandError(`${trigger} vereist 1–10 antwoordregels.`);
     }
     const responses = row.responses.map((text: unknown) => {
-      if (typeof text !== 'string' || !text.trim() || text.trim().length > 200 || /[\r\n\u0000-\u001f]/.test(text)) {
-        throw new CommandError(`Elke antwoordregel van ${trigger} moet 1–200 tekens bevatten, zonder regeleinden.`);
+      if (typeof text !== 'string' || !text.trim() || text.length > 1200 || /[\r\n\u0000-\u001f]/.test(text)) {
+        throw new CommandError(`Elke invoerregel van ${trigger} moet 1–1200 tekens bevatten, zonder regeleinden.`);
       }
       return text.trim();
     });
+    const plan = planResponses(responses);
+    if (plan.error) throw new CommandError(`${trigger}: ${plan.error}`);
     return { trigger, responses, cooldownSeconds: Number(row.cooldownSeconds), enabled: row.enabled };
   });
   return { revision: Number(document.revision), commands };

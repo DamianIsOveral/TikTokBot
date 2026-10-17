@@ -6,6 +6,7 @@ import type { CommandStore } from '../src/server/command-store.ts';
 import type { AccessStore } from '../src/server/auth/access-store.ts';
 import type { AccountReader } from '../src/server/euler-access.ts';
 import type { DirectChatOptions } from '../src/server/tiktok/direct-chat.ts';
+import type { AuditStore } from '../src/shared/moderation.ts';
 
 export const ADMIN = '111111111111111111';
 export const MEMBER = '222222222222222222';
@@ -13,14 +14,14 @@ export const DENIED = '333333333333333333';
 
 export function createTestApp(config: AppConfig, connector?: ConnectorLoader, commands?: CommandStore,
   access: AccessStore = createAccessStore([ADMIN]),
-  accountReader: AccountReader = async () => ({ account: { scopes: [13], expires_at: null } }), directOptions?: DirectChatOptions) {
+  accountReader: AccountReader = async () => ({ account: { scopes: [13], expires_at: null } }), directOptions?: DirectChatOptions, audit?: AuditStore) {
   config.discord.clientId = '999999999999999999';
   config.discord.clientSecret = 'offline-test-secret';
   config.discord.adminIds = [ADMIN];
   config.options.signApiKey ||= 'offline-key';
   return createApp(config, connector, commands, access, {
     identify: async code => ({ id: code, name: 'Offline testgebruiker' })
-  }, accountReader, directOptions);
+  }, accountReader, directOptions, audit);
 }
 
 export async function beginLogin(base: string) {

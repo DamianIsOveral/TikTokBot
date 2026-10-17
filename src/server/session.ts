@@ -2,7 +2,7 @@ import type { Mode, Phase, ChatEvent, LiveEvent, ServerEvent, Snapshot } from '.
 import type { ChatCapabilities } from '../shared/capabilities.ts';
 
 export function createSession(publish: (event: ServerEvent) => void, limit = 500) {
-  let mode: Mode = 'demo';
+  let mode: Mode = 'live';
   let status = 'Niet verbonden';
   let phase: Phase = 'idle';
   let nextId = 1;
@@ -22,6 +22,7 @@ export function createSession(publish: (event: ServerEvent) => void, limit = 500
         messages = [];
         botStatus = undefined;
       }
+      if (['idle', 'stopped', 'disconnected', 'error'].includes(event.phase || '')) messages = [];
       publish({ ...event, phase, mode });
     } else if (event.type === 'bot') {
       botStatus = event.text;

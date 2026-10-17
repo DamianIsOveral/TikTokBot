@@ -7,7 +7,8 @@ import { readConfig } from '../src/server/config.ts';
 
 test('sessie bewaart maximaal 500 berichten en start een nieuwe chat bij verbinden', () => {
   const session = createSession(() => {});
-  assert.equal(session.snapshot().mode, 'demo');
+  assert.equal(session.snapshot().mode, 'live');
+  assert.equal(session.snapshot().messages.length, 0);
   session.receive({ type: 'status', phase: 'connecting', text: 'Verbinden' });
   session.receive({ type: 'status', phase: 'connected', text: 'Verbonden' });
   for (let i = 0; i < 510; i++) session.receive({ type: 'chat', user: 'tester', text: String(i) });
@@ -18,7 +19,7 @@ test('sessie bewaart maximaal 500 berichten en start een nieuwe chat bij verbind
   snapshot.messages[0].text = 'gewijzigd';
   assert.equal(session.snapshot().messages[0].text, '10');
   session.receive({ type: 'status', phase: 'stopped', text: 'Gestopt' });
-  assert.equal(session.snapshot().messages.length, 500);
+  assert.equal(session.snapshot().messages.length, 0);
   assert.equal(session.snapshot().mode, 'live');
   session.receive({ type: 'status', phase: 'connecting', text: 'Verbinden' });
   assert.equal(session.snapshot().messages.length, 0);

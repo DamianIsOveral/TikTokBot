@@ -9,3 +9,4 @@ coverage
 *.log
 *.har
 data
+secrets

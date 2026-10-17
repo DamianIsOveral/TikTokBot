@@ -15,7 +15,8 @@ export function render(): void {
     return `<div class="row ${flagged ? 'flagged' : ''}"><time>${escapeHTML(message.time)}</time>
       <div class="avatar">${avatar(message)}</div><strong>${escapeHTML(message.user)}</strong>
       <p>${escapeHTML(message.text)}</p><span class="warning">${flagged ? '⚠' : ''}</span></div>`;
-  }).join('') || '<div class="empty">Geen berichten gevonden.</div>';
+  }).join('') || `<div class="empty">${state.liveMode && (!state.serverConnected || state.phase !== 'connected')
+    ? 'Niet verbonden. Klik op Verbinden om de LIVE-chat te laden.' : 'Nog geen berichten.'}</div>`;
   const items = pending();
   element('#total').textContent = String(state.messages.length);
   element('#count').textContent = element('#badge').textContent = String(items.length);
@@ -24,16 +25,16 @@ export function render(): void {
     .reverse().map(message => `<div class="card"><div class="cardtop"><div class="avatar">${avatar(message)}</div>
       <div class="cardbody"><time>${escapeHTML(message.time)}</time><strong>@${escapeHTML(message.user)}</strong>
       <p>${escapeHTML(message.text)}</p><span class="tag">${escapeHTML(classify(message.text, state.settings))}</span></div></div>
-      <div class="actions"><button class="mute" data-action="mute" data-id="${message.id}" ${state.liveMode ? 'disabled' : ''}
-      title="${escapeHTML(state.liveMode ? 'LIVE-moderatie is nog niet aangesloten.' : 'Lokale demoactie')}">Dempen${state.liveMode ? '' : ' · demo'}</button>
-      <button data-action="ban" data-id="${message.id}" ${state.liveMode ? 'disabled' : ''}
-      title="${escapeHTML(state.liveMode ? 'LIVE-moderatie is nog niet aangesloten.' : 'Lokale demoactie')}">Ban${state.liveMode ? '' : ' · demo'}</button>
+      <div class="actions"><button class="mute" data-action="mute" data-id="${message.id}" ${state.liveMode && (!state.moderation?.mute || !state.serverConnected || state.phase !== 'connected' || !message.userId || !message.secUid) ? 'disabled' : ''}
+      title="${escapeHTML(state.liveMode ? state.moderation?.reason || 'Rechten worden gecontroleerd.' : 'Lokale demoactie')}">Dempen${state.liveMode ? '' : ' · demo'}</button>
+      <button data-action="ban" data-id="${message.id}" ${state.liveMode && (!state.moderation?.ban || !state.serverConnected || state.phase !== 'connected' || !message.userId || !message.secUid) ? 'disabled' : ''}
+      title="${escapeHTML(state.liveMode ? state.moderation?.reason || 'Rechten worden gecontroleerd.' : 'Lokale demoactie')}">Blokkeren${state.liveMode ? '' : ' · demo'}</button>
       <button data-action="ignore" data-id="${message.id}">Negeren</button>
-      <select ${state.liveMode ? 'disabled' : ''} aria-label="Demptijd voor ${escapeHTML(message.user)}"><option>5 minuten</option>
-      <option>30 minuten</option><option>Hele LIVE</option></select></div></div>`).join('')
+      <select aria-label="Demptijd voor ${escapeHTML(message.user)}"><option value="30">30 seconden</option><option value="5">5 seconden</option>
+      <option value="60">1 minuut</option><option value="300">5 minuten</option><option value="0">Gehele LIVE</option></select></div></div>`).join('')
     || '<div class="empty">✓ Geen berichten om te beoordelen.</div>';
   element('#activity').textContent = state.activity[0] || 'Nog geen lokale acties.';
-  if (state.page === 'Overzicht' || state.page === 'Moderatie') renderPage(render);
+  if (state.page === 'Overzicht') renderPage(render);
 }
 
 let renderTimer: ReturnType<typeof setTimeout> | undefined;

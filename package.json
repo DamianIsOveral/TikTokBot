@@ -16,7 +16,9 @@
     "probe:tiktok": "node --env-file-if-exists=.env scripts/probe-tiktok.ts",
     "probe:tiktok-signing": "node scripts/probe-tiktok-signing.ts",
     "inspect:tiktok-har": "node scripts/inspect-tiktok-har.ts",
-    "check": "npm run typecheck && node scripts/check.ts"
+    "config:check": "node --env-file-if-exists=.env scripts/config-check.ts",
+    "probe:tiktok-moderation": "node --env-file-if-exists=.env scripts/probe-tiktok-moderation.ts",
+    "check": "npm run typecheck && node scripts/check.ts && node scripts/check-tracked.ts"
   },
   "dependencies": {
     "tiktok-live-connector": "2.5.0"

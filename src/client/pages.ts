@@ -4,6 +4,7 @@ import { pending, state } from './model.js';
 import { mountCommands } from './commands.js';
 import { mountAccess } from './access.js';
 import { mountChatAccess } from './capabilities.js';
+import { mountModeration } from './moderation.js';
 
 export function renderPage(onChange: () => void): void {
   const node = element('#otherpage');
@@ -12,19 +13,12 @@ export function renderPage(onChange: () => void): void {
   } else if (state.page === 'Commands') {
     mountCommands();
   } else if (state.page === 'Overzicht') {
-    node.innerHTML = `<h2>Overzicht</h2><p>Faynominaal LIVE Dashboard · demo of LIVE-chat</p>
+    node.innerHTML = `<h2>Overzicht</h2><p>Faynominaal LIVE Dashboard</p>
       <p>${state.messages.length} berichten · ${pending().length} te beoordelen · ${state.activity.length} demoacties.</p>
       <p>Livechat en herkenning van verdachte berichten zijn lokaal uit te proberen. TikTok LIVE is beschikbaar via Verbinden.
-      Discord-toegang is beschikbaar. LIVE-mutes en bans zijn nog niet aangesloten.</p>`;
+      Discord-toegang is beschikbaar. Moderatieacties en hun log staan op de pagina Moderatie.</p>`;
   } else if (state.page === 'Moderatie') {
-    node.innerHTML = `<h2>Moderatie</h2><p>LIVE-mutes, bans, unmute en unban zijn nog niet aangesloten.
-      Gebruik voorlopig de moderatieknoppen in TikTok zelf. Filters en lokaal negeren blijven beschikbaar.</p>
-      <div class="command-toolbar"><button disabled>Dempen</button><button disabled>Ban</button>
-      <button disabled>Unmute</button><button disabled>Unban</button></div>
-      <h3>Lokale activiteit</h3>` + (state.activity.length
-      ? state.activity.map(line => `<p>${escapeHTML(line)}</p>`).join('')
-      : '<p>Nog geen acties. Beoordeel een bericht op de pagina Livechat.</p>');
-    mountChatAccess(node);
+    mountModeration();
   } else if (state.page === 'Filters') {
     const settings = state.settings;
     node.innerHTML = `<h2>Filters</h2><p>Deze regels markeren berichten voor beoordeling. Er wordt niemand automatisch gedempt.</p>

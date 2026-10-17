@@ -4,19 +4,21 @@ import { createDirectClient, DirectTikTokError, directErrorText } from '../src/s
 import { createReadOnlyRequest } from '../src/server/tiktok/read-only-request.ts';
 import type { TikTokLiveConnection as SdkConnection } from 'tiktok-live-connector';
 import type { Connector } from '../src/server/types.ts';
+import { readSecretEnvironment } from '../src/server/secret-env.ts';
 
 const args = process.argv.slice(2);
 if (args.some(arg => !['--send-once', '--prepare-signed', '--send-signed-once'].includes(arg)) || args.length > 1) {
   throw new Error('Gebruik probe-tiktok.ts [--prepare-signed | --send-once | --send-signed-once].');
 }
-const config = readConfig();
+const env = readSecretEnvironment(process.env);
+const config = readConfig(env);
 try {
   const signed = args.includes('--prepare-signed') || args.includes('--send-signed-once');
   const signer = signed ? await (await import('../src/server/tiktok/headless-signer.ts')).createHeadlessSigner() : undefined;
   const inspection = args.includes('--prepare-signed') ? createReadOnlyRequest() : undefined;
-  const direct = createDirectClient({ sessionId: process.env.TIKTOK_SESSION_ID || '',
-    targetIdc: process.env.TIKTOK_TARGET_IDC || '', botUsername: config.botUsername,
-    msToken: process.env.TIKTOK_MS_TOKEN || undefined, verifyFp: process.env.TIKTOK_VERIFY_FP || undefined
+  const direct = createDirectClient({ sessionId: env.TIKTOK_SESSION_ID || '',
+    targetIdc: env.TIKTOK_TARGET_IDC || '', botUsername: config.botUsername,
+    msToken: env.TIKTOK_MS_TOKEN || undefined, verifyFp: env.TIKTOK_VERIFY_FP || undefined
   }, inspection?.request ?? fetch, { signRequest: signer });
   await direct.verifyIdentity();
   console.log('Botsessie geldig en accountnaam gecontroleerd.');

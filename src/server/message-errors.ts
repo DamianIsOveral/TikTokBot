@@ -1,8 +1,10 @@
 import { errorRecords } from './connection-errors.ts';
 import { DirectTikTokError, directErrorText } from './tiktok/direct-client.ts';
+import { OperationBusyError } from './operation-queue.ts';
 
 export function messageErrorText(error: unknown): string {
   if (error instanceof DirectTikTokError) return directErrorText(error);
+  if (error instanceof OperationBusyError) return 'De bot is bezig; dit commando is overgeslagen.';
   const records = errorRecords(error);
   const text = records.map(record => `${record.name || ''} ${record.constructor?.name || ''} ${typeof record.message === 'string' ? record.message.slice(0, 4096) : ''}`).join(' ');
   const statuses = records.map(record => {

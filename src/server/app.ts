@@ -19,10 +19,13 @@ import { routeCapabilities } from './http/capability-routes.ts';
 import { createDirectChat } from './tiktok/direct-chat.ts';
 import type { DirectChatOptions } from './tiktok/direct-chat.ts';
 import type { ChatAccess } from './chat-access.ts';
+import { createAuditStore } from './moderation-audit.ts';
+import type { AuditStore } from '../shared/moderation.ts';
+import { createModerationRoutes } from './http/moderation-routes.ts';
 
 export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, commands = createCommandStore(),
   access = createAccessStore(config.discord.adminIds), provider?: DiscordProvider, accountReader?: AccountReader,
-  directOptions?: DirectChatOptions) {
+  directOptions?: DirectChatOptions, audit: AuditStore = createAuditStore()) {
   const events = createEventStream();
   const session = createSession(events.broadcast);
   if (config.chatTransport === 'direct' && !config.directCredentials) throw new Error('Directe chatconfiguratie ontbreekt.');
@@ -30,12 +33,17 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
   const direct = config.chatTransport === 'direct' && config.directCredentials
     ? createDirectChat(config.directCredentials, config.username, publish, directOptions) : undefined;
   const capabilities: ChatAccess = direct ?? createEulerAccess(config.options.signApiKey, publish, accountReader);
-  const live = createLive(config, session.receive, loadConnector, () => commands.list(), capabilities.canSend,
+  const live = createLive(config, event => {
+    if (event.type === 'status' && event.phase !== 'connected') direct?.setModerationAvailable(false);
+    session.receive(event);
+  }, loadConnector, () => commands.list(), capabilities.canSend,
     direct ? (text, connection, active) => direct.send(text, connection.roomId, active) : undefined);
   void capabilities.refresh();
+  if (config.autoConnect) void live.connect();
   const rightsTimer = setInterval(() => { void capabilities.refresh(); }, 60_000);
   rightsTimer.unref();
   const auth = createAuth(config.discord, access, events.disconnect, provider);
+  const routeModeration = createModerationRoutes(config, direct, live, session, audit);
   const server = http.createServer(async (req, res) => {
     if (!secureRequest(req, res, config.port)) return;
     if (req.url === '/health' && req.method === 'GET') {
@@ -57,6 +65,7 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
     }
     if (req.url?.split('?')[0] === '/login') { res.writeHead(302, { Location: '/' }).end(); return; }
     if (await routeAccess(req, res, access, user, () => { auth.revalidate(); events.disconnect(); })) return;
+    if (await routeModeration(req, res, user, () => !!auth.user(req))) return;
     if (await routeCapabilities(req, res, capabilities)) return;
     if (await routeCommands(req, res, commands, config.botEnabled, capabilities)) return;
     if (!routeApi(req, res, { config, live, session, events, authorizeEvents: () => !!auth.user(req) })) await serveAsset(req, res);

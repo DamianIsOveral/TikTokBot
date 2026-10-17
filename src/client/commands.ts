@@ -1,6 +1,7 @@
 import type { CommandDefinition, CommandSettings } from '../shared/commands.js';
 import { element, escapeHTML } from './dom.js';
 import type { ChatCapabilities } from '../shared/capabilities.js';
+import { commandPolicy, planResponses } from '../shared/command-policy.js';
 
 let currentAccess: ((value: ChatCapabilities) => void) | undefined;
 export function updateCommandAccess(value: ChatCapabilities): void { currentAccess?.(value); }
@@ -9,7 +10,8 @@ export function mountCommands(): void {
   const root = document.createElement('div');
   root.className = 'commands-editor';
   root.innerHTML = `<h2>Commands</h2>
-    <p>Pas antwoorden en cooldowns aan. Elke antwoordregel wordt een afzonderlijk chatbericht.</p>
+    <p>Lange regels worden opgesplitst in maximaal 6 chatberichten van 200 tekens. Minimaal 3 seconden ertussen,
+    10 seconden pauze na een antwoord en maximaal 10 botberichten per minuut. Er ontstaat geen wachtrij.</p>
     <p data-bot></p><p data-status role="status">Commands laden…</p>
     <form data-form><div data-list></div>
       <div class="command-toolbar"><button type="button" data-add disabled>＋ Commando toevoegen</button>
@@ -56,10 +58,21 @@ export function mountCommands(): void {
       <label for="trigger-${id}">Commando<input id="trigger-${id}" data-trigger required pattern="![a-zA-Z0-9_]{1,30}" maxlength="31" value="${escapeHTML(command.trigger)}" placeholder="!nieuw"></label>
       <label for="cooldown-${id}">Cooldown (seconden)<input id="cooldown-${id}" data-cooldown type="number" min="5" max="3600" required value="${command.cooldownSeconds}"></label>
       <label class="command-enabled"><input data-enabled type="checkbox" ${command.enabled ? 'checked' : ''}> Ingeschakeld</label>
-      </div><label for="responses-${id}">Antwoorden (1–10 regels, maximaal 200 tekens per regel)
+      </div><label for="responses-${id}">Antwoorden (maximaal 1200 tekens totaal)
       <textarea id="responses-${id}" data-responses required>${escapeHTML(command.responses.join('\n'))}</textarea></label>
+      <p data-plan role="status"></p>
       <button type="button" data-remove>Verwijderen</button>`;
     find('[data-list]').append(row);
+    updatePlan(row);
+  }
+
+  function updatePlan(row: HTMLElement): void {
+    const responses = row.querySelector<HTMLTextAreaElement>('[data-responses]')!.value.split(/\r?\n/).map(line => line.trim());
+    const plan = planResponses(responses);
+    const cooldown = Number(row.querySelector<HTMLInputElement>('[data-cooldown]')!.value);
+    row.querySelector('[data-plan]')!.textContent = plan.error || `${plan.messages.length} chatbericht${plan.messages.length === 1 ? '' : 'en'}
+      · ${plan.characters}/1200 tekens · minimaal ${plan.durationSeconds} seconden · effectieve cooldown ${Math.max(commandPolicy.minCooldownSeconds, cooldown || 0)} seconden.`;
+    row.querySelector<HTMLTextAreaElement>('[data-responses]')!.setCustomValidity(plan.error);
   }
 
   function draft(): CommandDefinition[] {
@@ -104,7 +117,11 @@ export function mountCommands(): void {
     const fields = root.querySelectorAll<HTMLInputElement>('[data-trigger]');
     fields[fields.length - 1]?.focus();
   };
-  find('[data-list]').addEventListener('input', () => status('Niet-opgeslagen wijzigingen.'));
+  find('[data-list]').addEventListener('input', event => {
+    const row = event.target instanceof Element ? event.target.closest<HTMLElement>('.command-card') : null;
+    if (row) updatePlan(row);
+    status('Niet-opgeslagen wijzigingen.');
+  });
   find('[data-list]').addEventListener('click', event => {
     const button = event.target instanceof Element ? event.target.closest('[data-remove]') : null;
     if (button) { button.closest('fieldset')?.remove(); status('Niet-opgeslagen wijzigingen.'); }
@@ -131,8 +148,9 @@ export function mountCommands(): void {
     event.preventDefault();
     const trigger = find<HTMLInputElement>('[data-test]').value.trim().toLowerCase();
     const command = draft().find(item => item.trigger === trigger);
+    const plan = command && planResponses(command.responses);
     find('[data-result]').textContent = !command ? 'Geen passend commando gevonden.' : !command.enabled
-      ? 'Dit commando is uitgeschakeld.' : `${command.responses.join('\n')}\n\nCooldown: ${command.cooldownSeconds} seconden.`;
+      ? 'Dit commando is uitgeschakeld.' : plan!.error || `${plan!.messages.map((text, index) => `${index + 1}/${plan!.messages.length}: ${text}`).join('\n\n')}\n\nMinimaal ${plan!.durationSeconds} seconden; cooldown ${Math.max(commandPolicy.minCooldownSeconds, command.cooldownSeconds)} seconden.`;
   };
   void load();
 }

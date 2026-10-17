@@ -509,3 +509,10 @@ button:disabled {
 .sidefoot button{font-size:12px;padding:6px 12px}
 .feature-disabled{opacity:.5;filter:grayscale(1)}
 .actions{flex-wrap:wrap}
+#connection-badge{color:var(--amber);border:1px solid currentColor;border-radius:8px;padding:8px 12px;white-space:nowrap}
+#connection-badge[data-connected=true]{color:var(--cyan)}
+[data-plan]{font-size:13px;color:var(--amber)}
+.moderation-lists{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px}
+.moderation-lists button{margin:6px}
+.audit-entry{border-bottom:1px solid var(--line);padding:12px 0;overflow-wrap:anywhere}
+.audit-entry time{display:block;color:var(--muted)}

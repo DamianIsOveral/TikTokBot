@@ -3,11 +3,13 @@ import { createApp } from './app.ts';
 import { loadCommandStore } from './command-store.ts';
 import { fileURLToPath } from 'node:url';
 import { loadAccessStore } from './auth/access-store.ts';
+import { loadAuditStore } from './moderation-audit.ts';
 
 const config = readConfig();
 const commands = await loadCommandStore(fileURLToPath(new URL('../../data/commands.json', import.meta.url)));
 const access = await loadAccessStore(fileURLToPath(new URL('../../data/access.json', import.meta.url)), config.discord.adminIds);
-const app = createApp(config, undefined, commands, access);
+const audit = await loadAuditStore(fileURLToPath(new URL('../../data/moderation-audit.json', import.meta.url)));
+const app = createApp(config, undefined, commands, access, undefined, undefined, undefined, audit);
 app.server.listen(config.port, config.host, () => {
   console.log(`Dashboard: http://${config.host === '::1' ? '[::1]' : config.host}:${config.port}`);
 });

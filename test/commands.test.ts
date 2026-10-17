@@ -40,7 +40,7 @@ test('validatie weigert dubbele triggers, onveilige waarden en te grote antwoord
   const valid = { revision: 0, commands: [command()] };
   assert.equal(validateCommands({ ...valid, commands: [{ ...command(), trigger: ' !TEST ' }] }).commands[0].trigger, '!test');
   for (const change of [
-    { trigger: '!<script>' }, { responses: [''] }, { responses: ['x'.repeat(201)] },
+    { trigger: '!<script>' }, { responses: [''] }, { responses: ['x'.repeat(1201)] },
     { responses: ['a\nb'] }, { responses: Array(11).fill('a') },
     { enabled: 'true' }, { cooldownSeconds: 0 }, { cooldownSeconds: 5.5 }
   ]) assert.throws(() => validateCommands({ ...valid, commands: [{ ...command(), ...change }] }));
@@ -96,15 +96,15 @@ test('commandowijzigingen gelden direct en stoppen een al gestarte antwoordreeks
   assert.deepEqual(sent, ['Eerste', 'Tweede']);
   await process({ content: '!test' });
   assert.equal(sent.length, 2);
-  now += 5000;
+  now += 31_000;
   await store.save({ ...store.snapshot(), commands: [{ ...command(), responses: ['Gewijzigd'] }] });
   await process({ content: '!test' });
   assert.equal(sent.at(-1), 'Gewijzigd');
-  now += 5000;
+  now += 31_000;
   disableDuringWait = true;
   await process({ content: '!test' });
   assert.equal(sent.length, 3);
-  now += 5000;
+  now += 31_000;
   await process({ content: '!test' });
   assert.equal(sent.length, 3);
 });

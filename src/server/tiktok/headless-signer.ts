@@ -16,6 +16,7 @@ export async function createHeadlessSigner(): Promise<DirectRequestSigner> {
       const readable = [worker, fileURLToPath(new URL('./signing-profile.ts', import.meta.url)),
         fileURLToPath(new URL('./upstream-signer.ts', import.meta.url)),
         fileURLToPath(new URL('./upstream-post-signer.ts', import.meta.url)), ...signingAssetPaths];
+      readable.push(fileURLToPath(new URL('./moderation-spec.ts', import.meta.url)));
       const encoded = await new Promise<string>((resolve, reject) => {
         const child = spawn(process.execPath, ['--permission', '--max-old-space-size=64',
           ...readable.map(path => `--allow-fs-read=${path}`), worker], {
