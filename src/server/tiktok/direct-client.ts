@@ -1,5 +1,9 @@
+import { parseWebcastCsrf } from './csrf.ts';
+import { signingUserAgent, validateSignedUrl } from './signing-profile.ts';
+import type { DirectRequestSigner } from './signing-profile.ts';
+
 export interface DirectCredentials { sessionId: string; targetIdc: string; botUsername: string }
-export type DirectFailure = 'session' | 'identity' | 'challenge' | 'csrf' | 'rejected' | 'empty' | 'network' | 'response';
+export type DirectFailure = 'session' | 'identity' | 'challenge' | 'csrf' | 'signing' | 'rejected' | 'empty' | 'network' | 'response';
 
 export class DirectTikTokError extends Error {
   readonly kind: DirectFailure;
@@ -26,6 +30,7 @@ export function directErrorText(error: unknown): string {
     identity: 'De TikTok-sessie hoort niet bij het ingestelde botaccount. Verzenden is geblokkeerd.',
     challenge: 'TikTok vraagt browserverificatie. De rechtstreekse proef is gestopt.',
     csrf: 'TikTok weigert de CSRF-validatie. De rechtstreekse actie is gestopt.',
+    signing: 'Lokale TikTok-ondertekening is mislukt. Er is niets verstuurd.',
     rejected: 'TikTok heeft het rechtstreekse verzoek geweigerd.',
     empty: 'TikTok geeft een leeg antwoord. De rechtstreekse actie is niet bevestigd.',
     network: 'TikTok is rechtstreeks niet bereikbaar. Er wordt niet automatisch opnieuw verstuurd.',
@@ -34,7 +39,8 @@ export function directErrorText(error: unknown): string {
   return messages[kind];
 }
 
-export function createDirectClient(credentials: DirectCredentials, request: typeof fetch = fetch) {
+export function createDirectClient(credentials: DirectCredentials, request: typeof fetch = fetch,
+  options: { signRequest?: DirectRequestSigner } = {}) {
   for (const value of [credentials.sessionId, credentials.targetIdc]) {
     if (!value || /[\s;\r\n]/.test(value)) throw new DirectTikTokError('session');
   }
@@ -47,8 +53,11 @@ export function createDirectClient(credentials: DirectCredentials, request: type
   let csrfToken = '';
   let deviceId = '';
   let preparedFor = '';
+  let webcastCsrf: ReturnType<typeof parseWebcastCsrf> | undefined;
+  const userAgent = options.signRequest ? signingUserAgent
+    : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
-  async function raw(url: URL, method: 'GET' | 'POST', referer: string): Promise<Response> {
+  async function raw(url: URL, method: 'GET' | 'POST' | 'HEAD', referer: string): Promise<Response> {
     if (!['https://www.tiktok.com', 'https://webcast.tiktok.com'].includes(url.origin)) {
       throw new DirectTikTokError('response');
     }
@@ -56,11 +65,15 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     try {
       response = await request(url, { method, redirect: 'error', signal: AbortSignal.timeout(10_000),
         headers: {
-          Cookie: [...cookies].map(([key, value]) => `${key}=${value}`).join('; '),
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+          Cookie: [...cookies].filter(([key]) => key !== 'csrf_session_id' || url.hostname === 'webcast.tiktok.com')
+            .map(([key, value]) => `${key}=${value}`).join('; '),
+          'User-Agent': userAgent,
           Accept: 'application/json', Referer: referer,
-          ...(method === 'POST' ? { Origin: 'https://www.tiktok.com', 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
-          ...(method === 'POST' && csrfToken ? { 'tt-csrf-token': csrfToken } : {}),
+          ...(method !== 'GET' ? { Origin: 'https://www.tiktok.com' } : {}),
+          ...(method === 'POST' ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+          ...(method === 'POST' && !options.signRequest && csrfToken ? { 'tt-csrf-token': csrfToken } : {}),
+          ...(method === 'POST' && options.signRequest && webcastCsrf ? { 'x-secsdk-csrf-token': webcastCsrf.token } : {}),
+          ...(method === 'HEAD' ? { 'x-secsdk-csrf-request': '1', 'x-secsdk-csrf-version': '1.2.22' } : {}),
           ...(cookies.has('passport_csrf_token') ? { 'x-tt-passport-csrf-token': cookies.get('passport_csrf_token')! } : {})
         }
       });
@@ -83,7 +96,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
       const equals = pair.indexOf('=');
       const name = pair.slice(0, equals);
       const value = pair.slice(equals + 1);
-      if (['passport_csrf_token', 'passport_csrf_token_default', 'tt_csrf_token', 'tt_chain_token', 'ttwid', 'msToken'].includes(name)
+      if (['passport_csrf_token', 'passport_csrf_token_default', 'tt_csrf_token', 'tt_chain_token', 'ttwid', 'msToken', 'csrf_session_id'].includes(name)
         && value && !/[\r\n;]/.test(value)) cookies.set(name, value);
     }
     return response;
@@ -128,6 +141,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     csrfToken = '';
     deviceId = '';
     preparedFor = '';
+    webcastCsrf = undefined;
     const response = await raw(new URL(`https://www.tiktok.com/@${username}/live`), 'GET', 'https://www.tiktok.com/');
     const html = await readText(response, 2_000_000);
     const match = html.match(/<script[^>]*id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/);
@@ -145,7 +159,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     preparedFor = username;
   }
 
-  async function sendMessage(roomId: string, username: string, content: string): Promise<{ messageId: string | null }> {
+  async function prepareMessage(roomId: string, username: string, content: string) {
     if (!/^\d{10,25}$/.test(roomId) || !/^[\w.]{1,24}$/.test(username)
       || !content.trim() || content.length > 200 || /[\r\n\x00]/.test(content)) {
       throw new DirectTikTokError('response');
@@ -155,6 +169,34 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     const url = new URL('https://webcast.tiktok.com/webcast/room/chat/');
     url.search = new URLSearchParams({ aid: '1988', app_name: 'tiktok_web', device_platform: 'web_pc',
       device_id: deviceId, room_id: roomId, content }).toString();
+    let measurements: { signMs: number; rssMiB: number } | undefined;
+    if (options.signRequest) {
+      url.searchParams.set('input_type', '0');
+      url.searchParams.set('emotes_with_index', '');
+      if (!webcastCsrf) {
+        const response = await raw(new URL('https://webcast.tiktok.com/webcast/room/chat/'), 'HEAD', `https://www.tiktok.com/@${username}/live`);
+        try { webcastCsrf = parseWebcastCsrf(response.headers.get('x-ware-csrf-token')); }
+        catch { throw new DirectTikTokError('csrf'); }
+      }
+      try {
+        const input = { url: url.href, userAgent, msToken: cookies.get('msToken') };
+        const result = await options.signRequest(input);
+        validateSignedUrl(input, result.signedUrl);
+        measurements = { signMs: result.signMs, rssMiB: result.rssMiB };
+        return { url: new URL(result.signedUrl), measurements };
+      } catch { throw new DirectTikTokError('signing'); }
+    }
+    return { url, measurements };
+  }
+
+  async function inspectMessage(roomId: string, username: string, content: string) {
+    const prepared = await prepareMessage(roomId, username, content);
+    return { sent: false, queryFields: [...prepared.url.searchParams.keys()],
+      csrfMode: webcastCsrf?.mode ?? 'page-token', ...prepared.measurements };
+  }
+
+  async function sendMessage(roomId: string, username: string, content: string): Promise<{ messageId: string | null }> {
+    const { url } = await prepareMessage(roomId, username, content);
     const json = await call(url, 'POST', `https://www.tiktok.com/@${username}/live`);
     if (json.status_code !== 0) throw new DirectTikTokError('rejected', 200,
       typeof json.status_code === 'number' ? json.status_code : undefined);
@@ -163,5 +205,5 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     return { messageId: typeof id === 'string' && /^\d+$/.test(id) ? id : null };
   }
 
-  return { verifyIdentity, sendMessage };
+  return { verifyIdentity, inspectMessage, sendMessage };
 }
