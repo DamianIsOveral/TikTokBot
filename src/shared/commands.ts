@@ -2,6 +2,7 @@ import type { ChatCapabilities } from './capabilities.js';
 
 export interface CommandDefinition {
   trigger: string;
+  aliases?: string[];
   responses: string[];
   cooldownSeconds: number;
   enabled: boolean;

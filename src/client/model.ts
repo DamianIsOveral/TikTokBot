@@ -17,6 +17,7 @@ interface DashboardState {
   phase: Phase;
   serverConnected: boolean;
   username: string;
+  menuMessageId?: number;
   capabilities?: ChatCapabilities;
   moderation?: { connected: boolean; enabled: boolean; mute: boolean; ban: boolean; reason: string };
 }

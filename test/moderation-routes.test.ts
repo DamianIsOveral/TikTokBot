@@ -48,7 +48,7 @@ async function fixture(t: { after(fn: () => unknown): void }, audit: AuditStore 
     async connect() {
       await request(base + '/api/connect', { method: 'POST', headers });
       await new Promise(resolve => setImmediate(resolve));
-      connection.emit('chat', { content: 'Verdacht bericht', user: { displayId: 'viewer', idStr: '456', secUid: 'SEC_VIEWER' } });
+      connection.emit('chat', { content: 'Verdacht bericht', user: { displayId: 'viewer', id:'456', idStr:'', secUid: 'SEC_VIEWER' } });
       const snapshot = await (await request(base + '/api/snapshot')).json();
       return snapshot.messages[0].id as number;
     } };

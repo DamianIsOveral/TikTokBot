@@ -9,9 +9,11 @@ import { render, scheduleRender } from './render.js';
 import { renderPage } from './pages.js';
 import { requireUser } from './auth.js';
 import { showChatAccess } from './capabilities.js';
-import { refreshModerationAccess, moderateMessage } from './moderation.js';
+import { refreshModerationAccess } from './moderation.js';
+import { createMessageActions } from './message-actions.js';
 
 function updateMode(live: boolean): void {
+  messageActions.close();
   state.liveMode = live;
   element<HTMLButtonElement>('#add').disabled = live;
   element<HTMLButtonElement>('#demo').disabled = !live;
@@ -86,6 +88,7 @@ function showBotStatus(text: string): void {
 }
 
 const connection = createConnection(onEvent);
+const messageActions = createMessageActions(render);
 element('#demo').onclick = () => {
   if (state.liveMode) { updateMode(false); loadDemo(); render(); }
   else { resetMessages(); updateMode(true); connection.subscribe(); render(); }
@@ -104,14 +107,16 @@ element('#add').onclick = () => { addSample(); render(); };
 element('#search').addEventListener('input', render);
 element('#sort').addEventListener('change', render);
 element('#chat').addEventListener('click', event => {
-  const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-review]') : null;
-  const message = state.messages.find(item => item.id === Number(button?.dataset.review));
-  if (!message) return;
-  message.manualReview = true;
-  message.resolved = false;
-  state.filter = 'Alle';
-  document.querySelectorAll('[data-filter]').forEach(node => node.classList.toggle('selected', (node as HTMLElement).dataset.filter === 'Alle'));
-  render();
+  const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-menu]') : null;
+  if (!button) return;
+  const box = button.getBoundingClientRect();
+  void messageActions.open(Number(button.dataset.menu), { x:box.right, y:box.top });
+});
+element('#chat').addEventListener('contextmenu', event => {
+  const row = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-message]') : null;
+  if (!row) return;
+  event.preventDefault();
+  void messageActions.open(Number(row.dataset.message), { x:event.clientX, y:event.clientY });
 });
 element('#tabs').addEventListener('click', event => {
   const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-filter]') : null;
@@ -125,24 +130,10 @@ element('#reviews').addEventListener('click', async event => {
   const message = state.messages.find(item => item.id === Number(button?.dataset.id));
   if (!button || !message || message.resolved) return;
   const duration = Number(button.parentElement?.querySelector('select')?.value || 30);
-  if (state.liveMode && button.dataset.action !== 'ignore') {
-    const action = button.dataset.action;
-    if (action !== 'mute' && action !== 'ban') return;
-    if (action === 'ban' && !window.confirm(`@${message.user} blokkeren? Je kunt dit terugdraaien onder Moderatie.`)) return;
-    button.disabled = true;
-    if (await moderateMessage(action, message.id, duration)) message.resolved = true;
-    render();
-    return;
-  }
-  message.resolved = true;
-  const line = button.dataset.action === 'ban'
-    ? `DEMO: @${message.user} geblokkeerd. Er is niets naar TikTok verzonden.` : button.dataset.action === 'mute'
-    ? `DEMO: @${message.user} gedempt voor ${duration === 0 ? 'de gehele LIVE' : `${duration} seconden`}. Er is niets naar TikTok verzonden.`
-    : `@${message.user}: bericht lokaal genegeerd.`;
-  state.activity.unshift(line);
-  if (state.activity.length > 100) state.activity.pop();
-  toast(line);
-  render();
+  const action = button.dataset.action;
+  if (action !== 'mute' && action !== 'ban' && action !== 'ignore') return;
+  button.disabled = true;
+  await messageActions.perform(action, message.id, duration);
 });
 document.querySelectorAll<HTMLButtonElement>('[data-page]').forEach(button => {
   button.onclick = () => {

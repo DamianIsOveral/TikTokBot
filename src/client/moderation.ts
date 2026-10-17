@@ -16,10 +16,12 @@ export async function refreshModerationAccess(): Promise<void> {
   if (pendingAccess) return pendingAccess;
   pendingAccess = (async () => { try {
     const response = await fetch('/api/moderation');
-    if (!response.ok) throw new Error();
-    const access = await response.json() as Access;
+    const access = await response.json() as Access & { error?: string };
+    if (!response.ok) throw new Error(access.error || 'Moderatierechten konden niet worden gecontroleerd.');
     if (state.liveMode && state.serverConnected && state.phase === 'connected') state.moderation = access;
-  } catch { state.moderation = { connected: false, enabled: false, mute: false, ban: false, reason: 'Moderatierechten konden niet worden gecontroleerd.' }; }
+  } catch (error) { state.moderation = { connected: false, enabled: false, mute: false, ban: false,
+    reason: error instanceof Error && error.message.length < 300 && !/fetch|network|json/i.test(error.message)
+      ? error.message : 'Moderatierechten konden niet worden gecontroleerd.' }; }
   })().finally(() => { pendingAccess = undefined; });
   return pendingAccess;
 }

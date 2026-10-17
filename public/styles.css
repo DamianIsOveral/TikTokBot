@@ -517,3 +517,10 @@ button:disabled {
 .audit-entry{border-bottom:1px solid var(--line);padding:12px 0;overflow-wrap:anywhere}
 .audit-entry time{display:block;color:var(--muted)}
 .review-message{padding:4px;min-width:28px;color:var(--amber)}
+.action-unavailable{flex-basis:100%;color:var(--amber)}
+.message-menu{position:fixed;inset:auto;margin:0;padding:12px;width:min(300px,calc(100vw - 24px));max-height:calc(100vh - 16px);overflow:auto;border:1px solid var(--cyan);border-radius:10px;background:#13212c;color:#edf1f7;box-shadow:0 8px 30px #0008}
+.message-menu:popover-open{display:flex;flex-direction:column;gap:6px}
+.message-menu strong{padding:6px 8px;overflow-wrap:anywhere}
+.message-menu button{text-align:left;width:100%;padding:10px 12px}
+.message-menu button:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
+.message-menu small,.message-menu>span{padding:6px 8px;line-height:1.5;color:var(--muted)}

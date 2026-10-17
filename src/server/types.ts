@@ -4,7 +4,7 @@ export interface TikTokMessage {
   content?: string;
   comment?: string;
   uniqueId?: string;
-  user?: { uniqueId?: string; displayId?: string; idStr?: string; secUid?: string };
+  user?: { uniqueId?: string; displayId?: string; id?: string; idStr?: string; secUid?: string };
 }
 
 export type ConnectorOptions = NonNullable<ConstructorParameters<typeof TikTokLiveConnection>[1]>;

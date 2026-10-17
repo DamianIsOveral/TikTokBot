@@ -8,6 +8,7 @@ import type { CommandDefinition } from '../shared/commands.ts';
 import { connectionErrorMessage, errorRecords } from './connection-errors.ts';
 import type { CommandSender } from './chat-access.ts';
 import { createCommandLimiter } from './command-limiter.ts';
+import { chatIdentity } from './chat-identity.ts';
 
 export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => void,
   load: ConnectorLoader = loadConnector, getCommands: () => readonly CommandDefinition[] = defaultCommands,
@@ -78,8 +79,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
         if (!active()) return;
         broadcast({ type: 'chat', user: String(data.user?.uniqueId || data.user?.displayId || data.uniqueId || 'onbekend').slice(0, 100),
           text: String(data.content ?? data.comment ?? '').slice(0, 2000),
-          userId: typeof data.user?.idStr === 'string' && /^\d{1,25}$/.test(data.user.idStr) ? data.user.idStr : undefined,
-          secUid: typeof data.user?.secUid === 'string' && /^[\w.-]{1,256}$/.test(data.user.secUid) ? data.user.secUid : undefined });
+          ...chatIdentity(data.user) });
         if (config.botEnabled && canSend()) void command(data);
       });
       current.on('error', (error: unknown) => {

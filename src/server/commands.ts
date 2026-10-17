@@ -25,16 +25,16 @@ export function createCommands({ send, active, botUsername, report, wait = delay
     const user = String(message.user?.displayId || message.user?.uniqueId || '').toLowerCase().slice(0, 100);
     if (user === botUsername.toLowerCase()) return;
     const command = String(message.content ?? message.comment ?? '').trim().toLowerCase();
-    const definition = getCommands().find(item => item.trigger === command && item.enabled);
+    const definition = getCommands().find(item => item.enabled && (item.trigger === command || item.aliases?.includes(command)));
     if (!definition) return;
     const plan = planResponses(definition.responses);
     if (plan.error) { report(`Commando overgeslagen: ${plan.error}`); return; }
-    const ticket = limiter.reserve(plan.messages.length, command, user, definition.cooldownSeconds);
+    const ticket = limiter.reserve(plan.messages.length, definition.trigger, user, definition.cooldownSeconds);
     if (!ticket) return;
     try {
       for (const text of plan.messages) {
         await wait(ticket.waitMs());
-        const latest = getCommands().find(item => item.trigger === command);
+        const latest = getCommands().find(item => item.trigger === definition.trigger);
         if (!active() || JSON.stringify(latest) !== JSON.stringify(definition)) break;
         try { await send(text); } finally { ticket.record(); }
       }

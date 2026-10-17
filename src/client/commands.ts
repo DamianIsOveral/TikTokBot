@@ -12,6 +12,7 @@ export function mountCommands(): void {
   root.innerHTML = `<h2>Commands</h2>
     <p>Lange regels worden opgesplitst in maximaal 6 chatberichten van 200 tekens. Minimaal 3 seconden ertussen,
     10 seconden pauze na een antwoord en maximaal 10 botberichten per minuut. Er ontstaat geen wachtrij.</p>
+    <p>Aliases gebruiken hetzelfde antwoord en dezelfde cooldown als het hoofdcommando. Maximaal 10 per commando.</p>
     <p data-bot></p><p data-status role="status">Commands laden…</p>
     <form data-form><div data-list></div>
       <div class="command-toolbar"><button type="button" data-add disabled>＋ Commando toevoegen</button>
@@ -58,7 +59,9 @@ export function mountCommands(): void {
       <label for="trigger-${id}">Commando<input id="trigger-${id}" data-trigger required pattern="![a-zA-Z0-9_]{1,30}" maxlength="31" value="${escapeHTML(command.trigger)}" placeholder="!nieuw"></label>
       <label for="cooldown-${id}">Cooldown (seconden)<input id="cooldown-${id}" data-cooldown type="number" min="5" max="3600" required value="${command.cooldownSeconds}"></label>
       <label class="command-enabled"><input data-enabled type="checkbox" ${command.enabled ? 'checked' : ''}> Ingeschakeld</label>
-      </div><label for="responses-${id}">Antwoorden (maximaal 1200 tekens totaal)
+      </div><label for="aliases-${id}">Aliases (gescheiden door komma’s)
+      <input id="aliases-${id}" data-aliases maxlength="400" value="${escapeHTML((command.aliases || []).join(', '))}" placeholder="!dc, !community"></label>
+      <label for="responses-${id}">Antwoorden (maximaal 1200 tekens totaal)
       <textarea id="responses-${id}" data-responses required>${escapeHTML(command.responses.join('\n'))}</textarea></label>
       <p data-plan role="status"></p>
       <button type="button" data-remove>Verwijderen</button>`;
@@ -78,6 +81,7 @@ export function mountCommands(): void {
   function draft(): CommandDefinition[] {
     return [...root.querySelectorAll<HTMLElement>('.command-card')].map(row => ({
       trigger: row.querySelector<HTMLInputElement>('[data-trigger]')!.value.trim().toLowerCase(),
+      aliases: row.querySelector<HTMLInputElement>('[data-aliases]')!.value.split(',').map(text => text.trim().toLowerCase()).filter(Boolean),
       cooldownSeconds: Number(row.querySelector<HTMLInputElement>('[data-cooldown]')!.value),
       enabled: row.querySelector<HTMLInputElement>('[data-enabled]')!.checked,
       responses: row.querySelector<HTMLTextAreaElement>('[data-responses]')!.value.split(/\r?\n/).map(text => text.trim())
@@ -147,7 +151,7 @@ export function mountCommands(): void {
   find<HTMLFormElement>('[data-preview]').onsubmit = event => {
     event.preventDefault();
     const trigger = find<HTMLInputElement>('[data-test]').value.trim().toLowerCase();
-    const command = draft().find(item => item.trigger === trigger);
+    const command = draft().find(item => item.trigger === trigger || item.aliases?.includes(trigger));
     const plan = command && planResponses(command.responses);
     find('[data-result]').textContent = !command ? 'Geen passend commando gevonden.' : !command.enabled
       ? 'Dit commando is uitgeschakeld.' : plan!.error || `${plan!.messages.map((text, index) => `${index + 1}/${plan!.messages.length}: ${text}`).join('\n\n')}\n\nMinimaal ${plan!.durationSeconds} seconden; cooldown ${Math.max(commandPolicy.minCooldownSeconds, command.cooldownSeconds)} seconden.`;
