@@ -1,9 +1,9 @@
 import { parseWebcastCsrf } from './csrf.ts';
-import { signingUserAgent, validateSignedUrl } from './signing-profile.ts';
+import { assertSigningVersion, signingSdkVersion, signingUserAgent, validateSignedUrl } from './signing-profile.ts';
 import type { DirectRequestSigner } from './signing-profile.ts';
 
 export interface DirectCredentials { sessionId: string; targetIdc: string; botUsername: string }
-export type DirectFailure = 'session' | 'identity' | 'challenge' | 'csrf' | 'signing' | 'rejected' | 'empty' | 'network' | 'response';
+export type DirectFailure = 'session' | 'identity' | 'challenge' | 'csrf' | 'signing' | 'signing-version' | 'rejected' | 'empty' | 'network' | 'response';
 
 export class DirectTikTokError extends Error {
   readonly kind: DirectFailure;
@@ -31,6 +31,7 @@ export function directErrorText(error: unknown): string {
     challenge: 'TikTok vraagt browserverificatie. De rechtstreekse proef is gestopt.',
     csrf: 'TikTok weigert de CSRF-validatie. De rechtstreekse actie is gestopt.',
     signing: 'Lokale TikTok-ondertekening is mislukt. Er is niets verstuurd.',
+    'signing-version': 'TikTok gebruikt een onbekende ondertekeningsversie. De proef is gestopt.',
     rejected: 'TikTok heeft het rechtstreekse verzoek geweigerd.',
     empty: 'TikTok geeft een leeg antwoord. De rechtstreekse actie is niet bevestigd.',
     network: 'TikTok is rechtstreeks niet bereikbaar. Er wordt niet automatisch opnieuw verstuurd.',
@@ -144,6 +145,10 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     webcastCsrf = undefined;
     const response = await raw(new URL(`https://www.tiktok.com/@${username}/live`), 'GET', 'https://www.tiktok.com/');
     const html = await readText(response, 2_000_000);
+    if (options.signRequest) {
+      try { assertSigningVersion(html); }
+      catch { throw new DirectTikTokError('signing-version'); }
+    }
     const match = html.match(/<script[^>]*id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/);
     let context: JsonObject;
     try {
@@ -192,7 +197,8 @@ export function createDirectClient(credentials: DirectCredentials, request: type
   async function inspectMessage(roomId: string, username: string, content: string) {
     const prepared = await prepareMessage(roomId, username, content);
     return { sent: false, queryFields: [...prepared.url.searchParams.keys()],
-      csrfMode: webcastCsrf?.mode ?? 'page-token', ...prepared.measurements };
+      csrfMode: webcastCsrf?.mode ?? 'page-token', scriptVersion: options.signRequest ? signingSdkVersion : undefined,
+      ...prepared.measurements };
   }
 
   async function sendMessage(roomId: string, username: string, content: string): Promise<{ messageId: string | null }> {

@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 
+export const signingSdkVersion = '1.0.0.417';
 export const signingAssets = [
   {
     name: 'bootstrap.js',
@@ -7,9 +8,9 @@ export const signingAssets = [
     sha256: '3a7ccf4b219e7d74689d1567c73cb528ccaa96ae6f43c0b23d8fb13a70e3ebd2'
   },
   {
-    name: 'webmssdk.js',
-    url: 'https://sf16-website-login.neutral.ttwstatic.com/obj/tiktok_web_login_static/webmssdk/1.0.0.388/webmssdk.js',
-    sha256: 'dee22566273d398e074df6db40f39cfd827f6b8efd6fc382de03c44c501299ac'
+    name: 'webmssdk-1.0.0.417.js',
+    url: 'https://sf16-website-login.neutral.tiktokcdn-eu.com/obj/tiktok_web_login_static_eu/webmssdk/1.0.0.417/webmssdk.js',
+    sha256: '6625c4fd90012eb2b6166002b278ac99ba2a2495325590f8eda9071544a814c8'
   }
 ] as const;
 export const signingDirectory = new URL('../../../.local-archive/signing-research/', import.meta.url);
@@ -20,6 +21,13 @@ export const signingAssetPaths = signingAssets.map(asset => fileURLToPath(new UR
 export interface SigningInput { url: string; userAgent: string; msToken?: string }
 export interface SigningResult { signedUrl: string; signMs: number; rssMiB: number }
 export type DirectRequestSigner = (input: SigningInput) => Promise<SigningResult>;
+
+export function assertSigningVersion(html: string): void {
+  const versions = new Set([...html.matchAll(/\/webmssdk\/([\d.]{1,32})\/webmssdk\.js/g)].map(match => match[1]));
+  if (versions.size !== 1 || !versions.has(signingSdkVersion)) {
+    throw new Error('De LIVE-pagina gebruikt geen eenduidige, vastgelegde ondertekeningsversie.');
+  }
+}
 
 export function validateSigningInput(input: SigningInput): void {
   const url = new URL(input.url);
