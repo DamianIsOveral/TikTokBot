@@ -16,13 +16,22 @@ import type { DiscordProvider } from './auth/discord.ts';
 import { createEulerAccess } from './euler-access.ts';
 import type { AccountReader } from './euler-access.ts';
 import { routeCapabilities } from './http/capability-routes.ts';
+import { createDirectChat } from './tiktok/direct-chat.ts';
+import type { DirectChatOptions } from './tiktok/direct-chat.ts';
+import type { ChatAccess } from './chat-access.ts';
 
 export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, commands = createCommandStore(),
-  access = createAccessStore(config.discord.adminIds), provider?: DiscordProvider, accountReader?: AccountReader) {
+  access = createAccessStore(config.discord.adminIds), provider?: DiscordProvider, accountReader?: AccountReader,
+  directOptions?: DirectChatOptions) {
   const events = createEventStream();
   const session = createSession(events.broadcast);
-  const capabilities = createEulerAccess(config.options.signApiKey, value => session.receive({ type: 'capabilities', value }), accountReader);
-  const live = createLive(config, session.receive, loadConnector, () => commands.list(), capabilities.canSend);
+  if (config.chatTransport === 'direct' && !config.directCredentials) throw new Error('Directe chatconfiguratie ontbreekt.');
+  const publish = (value: ReturnType<ChatAccess['snapshot']>) => session.receive({ type: 'capabilities', value });
+  const direct = config.chatTransport === 'direct' && config.directCredentials
+    ? createDirectChat(config.directCredentials, config.username, publish, directOptions) : undefined;
+  const capabilities: ChatAccess = direct ?? createEulerAccess(config.options.signApiKey, publish, accountReader);
+  const live = createLive(config, session.receive, loadConnector, () => commands.list(), capabilities.canSend,
+    direct ? (text, connection, active) => direct.send(text, connection.roomId, active) : undefined);
   void capabilities.refresh();
   const rightsTimer = setInterval(() => { void capabilities.refresh(); }, 60_000);
   rightsTimer.unref();

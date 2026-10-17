@@ -1,4 +1,4 @@
-import type { EulerCapabilities } from '../shared/capabilities.ts';
+import type { ChatCapabilities } from '../shared/capabilities.ts';
 
 export type AccountReader = (key: string, signal: AbortSignal) => Promise<unknown>;
 const CACHE_MS = 5 * 60_000;
@@ -15,17 +15,17 @@ export const readEulerAccount: AccountReader = async (key, signal) => {
   return response.json();
 };
 
-export function createEulerAccess(key: string | undefined, publish: (value: EulerCapabilities) => void,
+export function createEulerAccess(key: string | undefined, publish: (value: ChatCapabilities) => void,
   read: AccountReader = readEulerAccount, now = Date.now) {
-  let value: EulerCapabilities = { state: 'checking', chat: false, moderation: false,
+  let value: ChatCapabilities = { state: 'checking', chat: false, moderation: false,
     reason: 'Euler-rechten worden gecontroleerd.', checkedAt: null };
   let validUntil = 0;
   let attemptedAt = -Infinity;
-  let pending: Promise<EulerCapabilities> | undefined;
+  let pending: Promise<ChatCapabilities> | undefined;
   let closed = false;
   let controller: AbortController | undefined;
 
-  function snapshot(): EulerCapabilities {
+  function snapshot(): ChatCapabilities {
     if (value.state === 'available' && now() >= validUntil) {
       return { ...value, state: 'unknown', chat: false, moderation: false,
         reason: 'Euler-rechten moeten opnieuw worden gecontroleerd.' };
@@ -33,14 +33,14 @@ export function createEulerAccess(key: string | undefined, publish: (value: Eule
     return { ...value };
   }
 
-  function refresh(force = false): Promise<EulerCapabilities> {
+  function refresh(force = false): Promise<ChatCapabilities> {
     if (closed) return Promise.resolve(snapshot());
     if (pending) return pending;
     const expired = value.state === 'available' && now() >= validUntil;
     if (!expired && now() - attemptedAt < (force ? 30_000 : CACHE_MS)) return Promise.resolve(snapshot());
     attemptedAt = now();
     pending = (async () => {
-      let next: EulerCapabilities;
+      let next: ChatCapabilities;
       const checkedAt = new Date(now()).toISOString();
       try {
         if (!key) {

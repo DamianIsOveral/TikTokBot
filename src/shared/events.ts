@@ -1,4 +1,4 @@
-import type { EulerCapabilities } from './capabilities.js';
+import type { ChatCapabilities } from './capabilities.js';
 
 export type Phase = 'idle' | 'connecting' | 'connected' | 'stopped' | 'disconnected' | 'error';
 export type Mode = 'demo' | 'live';
@@ -17,7 +17,7 @@ export interface IncomingChat {
 }
 
 export interface BotEvent { type: 'bot'; text: string }
-export interface CapabilityEvent { type: 'capabilities'; value: EulerCapabilities }
+export interface CapabilityEvent { type: 'capabilities'; value: ChatCapabilities }
 
 export interface ChatEvent extends IncomingChat {
   id: number;
@@ -31,7 +31,7 @@ export interface Snapshot {
   text: string;
   messages: ChatEvent[];
   botStatus?: string;
-  capabilities?: EulerCapabilities;
+  capabilities?: ChatCapabilities;
 }
 
 export type LiveEvent = StatusEvent | IncomingChat | BotEvent | CapabilityEvent;

@@ -25,9 +25,9 @@ export function render(): void {
       <div class="cardbody"><time>${escapeHTML(message.time)}</time><strong>@${escapeHTML(message.user)}</strong>
       <p>${escapeHTML(message.text)}</p><span class="tag">${escapeHTML(classify(message.text, state.settings))}</span></div></div>
       <div class="actions"><button class="mute" data-action="mute" data-id="${message.id}" ${state.liveMode ? 'disabled' : ''}
-      title="${escapeHTML(state.liveMode ? state.capabilities?.moderation ? 'LIVE-koppeling nog niet aangesloten.' : 'Webcast Premium vereist voor LIVE-moderatie.' : 'Lokale demoactie')}">Dempen${state.liveMode ? '' : ' · demo'}</button>
+      title="${escapeHTML(state.liveMode ? 'LIVE-moderatie is nog niet aangesloten.' : 'Lokale demoactie')}">Dempen${state.liveMode ? '' : ' · demo'}</button>
       <button data-action="ban" data-id="${message.id}" ${state.liveMode ? 'disabled' : ''}
-      title="${escapeHTML(state.liveMode ? state.capabilities?.moderation ? 'LIVE-koppeling nog niet aangesloten.' : 'Webcast Premium vereist voor LIVE-moderatie.' : 'Lokale demoactie')}">Ban${state.liveMode ? '' : ' · demo'}</button>
+      title="${escapeHTML(state.liveMode ? 'LIVE-moderatie is nog niet aangesloten.' : 'Lokale demoactie')}">Ban${state.liveMode ? '' : ' · demo'}</button>
       <button data-action="ignore" data-id="${message.id}">Negeren</button>
       <select ${state.liveMode ? 'disabled' : ''} aria-label="Demptijd voor ${escapeHTML(message.user)}"><option>5 minuten</option>
       <option>30 minuten</option><option>Hele LIVE</option></select></div></div>`).join('')

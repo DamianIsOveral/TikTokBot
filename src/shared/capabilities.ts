@@ -1,4 +1,4 @@
-export interface EulerCapabilities {
+export interface ChatCapabilities {
   state: 'checking' | 'available' | 'unavailable' | 'unknown';
   chat: boolean;
   moderation: boolean;

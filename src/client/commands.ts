@@ -1,9 +1,9 @@
 import type { CommandDefinition, CommandSettings } from '../shared/commands.js';
 import { element, escapeHTML } from './dom.js';
-import type { EulerCapabilities } from '../shared/capabilities.js';
+import type { ChatCapabilities } from '../shared/capabilities.js';
 
-let currentAccess: ((value: EulerCapabilities) => void) | undefined;
-export function updateCommandAccess(value: EulerCapabilities): void { currentAccess?.(value); }
+let currentAccess: ((value: ChatCapabilities) => void) | undefined;
+export function updateCommandAccess(value: ChatCapabilities): void { currentAccess?.(value); }
 
 export function mountCommands(): void {
   const root = document.createElement('div');
@@ -43,8 +43,8 @@ export function mountCommands(): void {
     if (!root.isConnected) return;
     allowed = value.chat;
     find('[data-bot]').textContent = allowed
-      ? botEnabled ? 'Webcast Premium beschikbaar. De bot verwerkt commands op de server zodra LIVE verbonden is.'
-        : 'Webcast Premium beschikbaar; botantwoorden staan uit op de server (BOT_ENABLED=false).' : value.reason;
+      ? botEnabled ? 'De bot verwerkt commands op de server zodra LIVE verbonden is.'
+        : 'Botverbinding beschikbaar; botantwoorden staan uit op de server (BOT_ENABLED=false).' : value.reason;
     lockForm(loading);
   };
 

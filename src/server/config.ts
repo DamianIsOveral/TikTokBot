@@ -1,6 +1,7 @@
 import type { ConnectorOptions } from './types.ts';
 import { readDiscordConfig } from './auth/config.ts';
 import type { DiscordConfig } from './auth/config.ts';
+import type { DirectCredentials } from './tiktok/direct-client.ts';
 
 export interface AppConfig {
   host: string;
@@ -8,6 +9,8 @@ export interface AppConfig {
   username: string;
   botEnabled: boolean;
   botUsername: string;
+  chatTransport: 'euler' | 'direct';
+  directCredentials?: DirectCredentials;
   options: ConnectorOptions;
   discord: DiscordConfig;
 }
@@ -27,7 +30,16 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   }
   const botEnabled = env.BOT_ENABLED === 'true';
   if (botEnabled && !credentials.every(Boolean)) throw new Error('Bot vereist TikTok/Euler-instellingen.');
-  return { host, port, username, botEnabled, botUsername: env.BOT_USERNAME || 'faynominaalbot',
+  const botUsername = env.BOT_USERNAME || 'faynominaalbot';
+  if (!/^[\w.]{1,24}$/.test(botUsername)) throw new Error('Ongeldige BOT_USERNAME.');
+  const chatTransport = env.TIKTOK_CHAT_TRANSPORT || 'euler';
+  if (chatTransport !== 'euler' && chatTransport !== 'direct') throw new Error('TIKTOK_CHAT_TRANSPORT moet euler of direct zijn.');
+  if (chatTransport === 'direct' && (!credentials.every(Boolean) || !env.TIKTOK_MS_TOKEN || !env.TIKTOK_VERIFY_FP)) {
+    throw new Error('Directe chat vereist de TikTok/Euler-instellingen en botcookies TIKTOK_MS_TOKEN/TIKTOK_VERIFY_FP.');
+  }
+  return { host, port, username, botEnabled, botUsername, chatTransport,
+    directCredentials: chatTransport === 'direct' ? { sessionId: credentials[1]!, targetIdc: credentials[2]!, botUsername,
+      msToken: env.TIKTOK_MS_TOKEN, verifyFp: env.TIKTOK_VERIFY_FP } : undefined,
     discord: readDiscordConfig(env, host, port),
     options: credentials.every(Boolean) ? {
       processInitialData: false, signApiKey: credentials[0], authenticateWs: true,

@@ -1,30 +1,30 @@
-import type { EulerCapabilities } from '../shared/capabilities.js';
+import type { ChatCapabilities } from '../shared/capabilities.js';
 import { element } from './dom.js';
 import { state } from './model.js';
 import { updateCommandAccess } from './commands.js';
 
-export function showEulerAccess(value: EulerCapabilities): void {
+export function showChatAccess(value: ChatCapabilities): void {
   state.capabilities = value;
-  const banner = element('#euler-status');
+  const banner = element('#chat-status');
   banner.textContent = value.chat ? '' : value.reason;
   banner.classList.toggle('hidden', value.chat);
   updateCommandAccess(value);
-  const summary = document.querySelector<HTMLElement>('[data-euler-summary]');
+  const summary = document.querySelector<HTMLElement>('[data-chat-summary]');
   if (summary) summary.textContent = describe(value);
 }
 
-function describe(value: EulerCapabilities): string {
+function describe(value: ChatCapabilities): string {
   const checked = value.checkedAt ? new Date(value.checkedAt).toLocaleTimeString('nl-NL') : 'nog niet';
   return `${value.reason} Laatst gecontroleerd: ${checked}.`;
 }
 
-export function mountEulerAccess(root: HTMLElement): void {
+export function mountChatAccess(root: HTMLElement): void {
   const section = document.createElement('section');
-  section.innerHTML = `<h3>Euler-toegang</h3><p data-euler-summary role="status"></p>
-    <button type="button" data-euler-refresh>Rechten opnieuw controleren</button>`;
+  section.innerHTML = `<h3>Botverbinding</h3><p data-chat-summary role="status"></p>
+    <button type="button">Rechten opnieuw controleren</button>`;
   root.append(section);
-  const summary = section.querySelector<HTMLElement>('[data-euler-summary]')!;
-  summary.textContent = state.capabilities ? describe(state.capabilities) : 'Euler-rechten worden gecontroleerd.';
+  const summary = section.querySelector<HTMLElement>('[data-chat-summary]')!;
+  summary.textContent = state.capabilities ? describe(state.capabilities) : 'Botverbinding wordt gecontroleerd.';
   const button = section.querySelector<HTMLButtonElement>('button')!;
   button.onclick = async () => {
     button.disabled = true;
@@ -32,7 +32,7 @@ export function mountEulerAccess(root: HTMLElement): void {
       const response = await fetch('/api/capabilities', { method: 'POST',
         headers: { 'X-Requested-With': 'faynominaal' } });
       if (!response.ok) throw new Error();
-      showEulerAccess(await response.json() as EulerCapabilities);
+      showChatAccess(await response.json() as ChatCapabilities);
     } catch { summary.textContent = 'Rechten ophalen mislukt. Controleer je serververbinding.'; }
     finally { button.disabled = false; }
   };

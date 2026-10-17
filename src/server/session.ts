@@ -1,5 +1,5 @@
 import type { Mode, Phase, ChatEvent, LiveEvent, ServerEvent, Snapshot } from '../shared/events.ts';
-import type { EulerCapabilities } from '../shared/capabilities.ts';
+import type { ChatCapabilities } from '../shared/capabilities.ts';
 
 export function createSession(publish: (event: ServerEvent) => void, limit = 500) {
   let mode: Mode = 'demo';
@@ -8,7 +8,7 @@ export function createSession(publish: (event: ServerEvent) => void, limit = 500
   let nextId = 1;
   let messages: ChatEvent[] = [];
   let botStatus: string | undefined;
-  let capabilities: EulerCapabilities | undefined;
+  let capabilities: ChatCapabilities | undefined;
 
   function receive(event: LiveEvent): void {
     if (event.type === 'capabilities') {

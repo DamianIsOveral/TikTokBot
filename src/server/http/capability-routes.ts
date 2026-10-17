@@ -1,8 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { EulerAccess } from '../euler-access.ts';
+import type { ChatAccess } from '../chat-access.ts';
 import { allowMutation } from './security.ts';
 
-export async function routeCapabilities(req: IncomingMessage, res: ServerResponse, access: EulerAccess): Promise<boolean> {
+export async function routeCapabilities(req: IncomingMessage, res: ServerResponse, access: ChatAccess): Promise<boolean> {
   if (req.url !== '/api/capabilities') return false;
   res.setHeader('Content-Type', 'application/json');
   if (req.method === 'GET') {

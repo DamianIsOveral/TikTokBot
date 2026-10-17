@@ -6,10 +6,11 @@ import { loadConnector } from './connector.ts';
 import { defaultCommands } from './command-defaults.ts';
 import type { CommandDefinition } from '../shared/commands.ts';
 import { connectionErrorMessage } from './connection-errors.ts';
+import type { CommandSender } from './chat-access.ts';
 
 export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => void,
   load: ConnectorLoader = loadConnector, getCommands: () => readonly CommandDefinition[] = defaultCommands,
-  canSend: () => boolean = () => false) {
+  canSend: () => boolean = () => false, send?: CommandSender) {
   let connection: Connector | undefined;
   let pending = false;
   let generation = 0;
@@ -29,6 +30,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
     report(`Verbinding maken met @${config.username}…`, 'connecting');
     let current: Connector | undefined;
     try {
+      if (config.chatTransport === 'direct' && !send) throw new Error('Directe verzendservice ontbreekt.');
       const { TikTokLiveConnection } = await load();
       if (attempt !== generation) return;
       current = new TikTokLiveConnection(config.username, config.options);
@@ -36,7 +38,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       let connected = false;
       const active = () => connected && connection === current && attempt === generation;
       const command = createCommands({
-        send: text => current!.sendMessage(text), active: () => active() && canSend(),
+        send: text => send ? send(text, current!, active) : current!.sendMessage(text), active: () => active() && canSend(),
         botUsername: config.botUsername, report: text => broadcast({ type: 'bot', text }), getCommands
       });
       current.on('chat', (data: TikTokMessage) => {

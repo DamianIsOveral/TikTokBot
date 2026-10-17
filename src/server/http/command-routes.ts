@@ -3,10 +3,10 @@ import type { CommandStore } from '../command-store.ts';
 import { CommandError } from '../command-validation.ts';
 import { allowMutation } from './security.ts';
 import { readJson } from './json.ts';
-import type { EulerAccess } from '../euler-access.ts';
+import type { ChatAccess } from '../chat-access.ts';
 
 export async function routeCommands(req: IncomingMessage, res: ServerResponse, store: CommandStore, botEnabled: boolean,
-  access: EulerAccess): Promise<boolean> {
+  access: ChatAccess): Promise<boolean> {
   if (req.url !== '/api/commands') return false;
   res.setHeader('Content-Type', 'application/json');
   const capabilities = await access.refresh();

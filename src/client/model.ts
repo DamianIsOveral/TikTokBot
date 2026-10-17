@@ -2,7 +2,7 @@ import type { Phase } from '../shared/events.js';
 import type { Category, FilterSettings } from './filters.js';
 import { classify, loadSettings } from './filters.js';
 import { displayTime } from './dom.js';
-import type { EulerCapabilities } from '../shared/capabilities.js';
+import type { ChatCapabilities } from '../shared/capabilities.js';
 
 export type Page = 'Overzicht' | 'Livechat' | 'Moderatie' | 'Filters' | 'Commands' | 'Toegang' | 'Instellingen';
 export interface Message { id: number; user: string; text: string; time: string; resolved: boolean }
@@ -16,7 +16,7 @@ interface DashboardState {
   liveMode: boolean;
   phase: Phase;
   username: string;
-  capabilities?: EulerCapabilities;
+  capabilities?: ChatCapabilities;
 }
 
 export const state: DashboardState = {

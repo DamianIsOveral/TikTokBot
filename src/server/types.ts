@@ -10,6 +10,7 @@ export interface TikTokMessage {
 export type ConnectorOptions = NonNullable<ConstructorParameters<typeof TikTokLiveConnection>[1]>;
 
 export interface Connector {
+  readonly roomId?: string;
   on(event: 'chat', listener: (message: TikTokMessage) => void): this;
   on(event: 'error', listener: (error: unknown) => void): this;
   on(event: 'disconnected', listener: () => void): this;

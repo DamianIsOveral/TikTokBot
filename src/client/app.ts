@@ -8,7 +8,7 @@ import { createConnection } from './connection.js';
 import { render, scheduleRender } from './render.js';
 import { renderPage } from './pages.js';
 import { requireUser } from './auth.js';
-import { showEulerAccess } from './euler.js';
+import { showChatAccess } from './capabilities.js';
 
 function updateMode(live: boolean): void {
   state.liveMode = live;
@@ -30,7 +30,7 @@ function updateConnection(data: StatusEvent | Snapshot): void {
 
 function onEvent(data: ClientEvent): void {
   if (data.type === 'capabilities') {
-    showEulerAccess(data.value);
+    showChatAccess(data.value);
     render();
   } else if (data.type === 'bot') {
     showBotStatus(data.text);
@@ -38,7 +38,7 @@ function onEvent(data: ClientEvent): void {
     element('#live-status').textContent = data.text;
     element<HTMLButtonElement>('#connect').disabled = element<HTMLButtonElement>('#stop').disabled = true;
   } else if (data.type === 'snapshot') {
-    if (data.capabilities) showEulerAccess(data.capabilities);
+    if (data.capabilities) showChatAccess(data.capabilities);
     showBotStatus(data.botStatus || '');
     updateConnection(data);
     updateMode(data.mode === 'live');

@@ -3,9 +3,10 @@ import { assertSigningVersion, signingSdkVersion, signingUserAgent, validateSign
 import type { DirectRequestSigner } from './signing-profile.ts';
 import { addBrowserParameters, inspectBrowserContext, readBrowserContext } from './browser-context.ts';
 import type { BrowserContext } from './browser-context.ts';
+import { createSessionCookies } from './session-cookies.ts';
 
 export interface DirectCredentials { sessionId: string; targetIdc: string; botUsername: string; msToken?: string; verifyFp?: string }
-export type DirectFailure = 'session' | 'identity' | 'challenge' | 'csrf' | 'signing' | 'signing-context' | 'signing-version' | 'rejected' | 'empty' | 'network' | 'response';
+export type DirectFailure = 'session' | 'identity' | 'challenge' | 'csrf' | 'signing' | 'signing-context' | 'signing-version' | 'rejected' | 'empty' | 'network' | 'response' | 'inactive';
 
 export class DirectTikTokError extends Error {
   readonly kind: DirectFailure;
@@ -33,12 +34,13 @@ export function directErrorText(error: unknown): string {
     challenge: 'TikTok vraagt browserverificatie. De rechtstreekse proef is gestopt.',
     csrf: 'TikTok weigert de CSRF-validatie. De rechtstreekse actie is gestopt.',
     signing: 'Lokale TikTok-ondertekening is mislukt. Er is niets verstuurd.',
-    'signing-context': 'De botsessie mist een msToken voor chatverzending. De proef is vóór verzending gestopt.',
+    'signing-context': 'De botsessie mist actuele browsercontext. Werk de botcookies msToken/verifyFp op de server bij.',
     'signing-version': 'TikTok gebruikt een onbekende ondertekeningsversie. De proef is gestopt.',
     rejected: 'TikTok heeft het rechtstreekse verzoek geweigerd.',
     empty: 'TikTok geeft een leeg antwoord. De rechtstreekse actie is niet bevestigd.',
     network: 'TikTok is rechtstreeks niet bereikbaar. Er wordt niet automatisch opnieuw verstuurd.',
-    response: 'TikTok geeft een onbekend antwoord. De rechtstreekse actie is niet bevestigd.'
+    response: 'TikTok geeft een onbekend antwoord. De rechtstreekse actie is niet bevestigd.',
+    inactive: 'Botbericht gestopt omdat de LIVE-verbinding of verzendtoegang niet meer actief is.'
   };
   return messages[kind];
 }
@@ -51,10 +53,11 @@ export function createDirectClient(credentials: DirectCredentials, request: type
   if (!/^[\w.]{1,24}$/.test(credentials.botUsername)) throw new DirectTikTokError('identity');
   if ((credentials.msToken !== undefined && !/^[\w=+/-]{1,1024}$/.test(credentials.msToken))
     || (credentials.verifyFp !== undefined && !/^[\w.-]{1,200}$/.test(credentials.verifyFp))) throw new DirectTikTokError('session');
-  const cookies = new Map<string, string>([
+  const jar = createSessionCookies([
     ['sessionid', credentials.sessionId], ['sessionid_ss', credentials.sessionId],
     ['sid_tt', credentials.sessionId], ['tt-target-idc', credentials.targetIdc]
   ]);
+  const { cookies } = jar;
   if (credentials.msToken) cookies.set('msToken', credentials.msToken);
   if (credentials.verifyFp) cookies.set('s_v_web_id', credentials.verifyFp);
   let verifiedUntil = 0;
@@ -72,6 +75,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     }
     let response: Response;
     try {
+      jar.prune();
       response = await request(url, { method, redirect: 'error', signal: AbortSignal.timeout(10_000),
         ...(body !== undefined ? { body } : {}),
         headers: {
@@ -88,6 +92,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
         }
       });
     } catch { throw new DirectTikTokError('network'); }
+    jar.absorb(response.headers);
     if (response.headers.get('x-tt-verify-id')) throw new DirectTikTokError('challenge', response.status);
     if (!response.ok) {
       let apiCode: number | undefined;
@@ -100,15 +105,6 @@ export function createDirectClient(credentials: DirectCredentials, request: type
         if (typeof code === 'number' && Number.isSafeInteger(code)) apiCode = code;
       } catch {}
       throw new DirectTikTokError(csrf ? 'csrf' : 'rejected', response.status, apiCode);
-    }
-    for (const header of response.headers.getSetCookie()) {
-      const pair = header.split(';')[0];
-      const equals = pair.indexOf('=');
-      const name = pair.slice(0, equals);
-      const value = pair.slice(equals + 1);
-      if (['passport_csrf_token', 'passport_csrf_token_default', 'tt_csrf_token', 'tt_chain_token', 'ttwid', 'msToken',
-        'csrf_session_id', 's_v_web_id', 'odin_tt', 'tt-target-idc-sign'].includes(name)
-        && value && !/[\r\n;]/.test(value)) cookies.set(name, value);
     }
     return response;
   }
@@ -145,7 +141,11 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     const data = object(json.data);
     if (typeof data.username !== 'string' || !data.user_id || data.error_code) throw new DirectTikTokError('session');
     if (data.username.toLowerCase() !== credentials.botUsername.toLowerCase()) throw new DirectTikTokError('identity');
+    jar.prune();
+    if (options.signRequest && ((credentials.msToken && !cookies.get('msToken'))
+      || (credentials.verifyFp && !cookies.get('s_v_web_id')))) throw new DirectTikTokError('signing-context');
     verifiedUntil = Date.now() + 5 * 60_000;
+    preparedFor = '';
   }
 
   async function resolveRoomId(username: string): Promise<string> {
@@ -187,6 +187,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
   }
 
   async function prepareMessage(roomId: string, username: string, content: string) {
+    jar.prune();
     if (!/^\d{10,25}$/.test(roomId) || !/^[\w.]{1,24}$/.test(username)
       || !content.trim() || content.length > 200 || /[\r\n\x00]/.test(content)) {
       throw new DirectTikTokError('response');
@@ -231,9 +232,12 @@ export function createDirectClient(credentials: DirectCredentials, request: type
       ...prepared.measurements };
   }
 
-  async function sendMessage(roomId: string, username: string, content: string): Promise<{ messageId: string | null }> {
+  async function sendMessage(roomId: string, username: string, content: string, active: () => boolean = () => true): Promise<{ messageId: string | null }> {
     const { url, body } = await prepareMessage(roomId, username, content);
-    if (options.signRequest && !url.searchParams.get('msToken')) throw new DirectTikTokError('signing-context');
+    jar.prune();
+    if (options.signRequest && (!url.searchParams.get('msToken') || (credentials.msToken && url.searchParams.get('msToken') !== cookies.get('msToken'))
+      || (credentials.verifyFp && !cookies.get('s_v_web_id')))) throw new DirectTikTokError('signing-context');
+    if (!active()) throw new DirectTikTokError('inactive');
     const json = await call(url, 'POST', `https://www.tiktok.com/@${username}/live`, body);
     if (json.status_code !== 0) throw new DirectTikTokError('rejected', 200,
       typeof json.status_code === 'number' ? json.status_code : undefined);
