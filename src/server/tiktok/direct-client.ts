@@ -1,9 +1,11 @@
 import { parseWebcastCsrf } from './csrf.ts';
 import { assertSigningVersion, signingSdkVersion, signingUserAgent, validateSignedUrl } from './signing-profile.ts';
 import type { DirectRequestSigner } from './signing-profile.ts';
+import { addBrowserParameters, inspectBrowserContext, readBrowserContext } from './browser-context.ts';
+import type { BrowserContext } from './browser-context.ts';
 
-export interface DirectCredentials { sessionId: string; targetIdc: string; botUsername: string }
-export type DirectFailure = 'session' | 'identity' | 'challenge' | 'csrf' | 'signing' | 'signing-version' | 'rejected' | 'empty' | 'network' | 'response';
+export interface DirectCredentials { sessionId: string; targetIdc: string; botUsername: string; msToken?: string; verifyFp?: string }
+export type DirectFailure = 'session' | 'identity' | 'challenge' | 'csrf' | 'signing' | 'signing-context' | 'signing-version' | 'rejected' | 'empty' | 'network' | 'response';
 
 export class DirectTikTokError extends Error {
   readonly kind: DirectFailure;
@@ -31,6 +33,7 @@ export function directErrorText(error: unknown): string {
     challenge: 'TikTok vraagt browserverificatie. De rechtstreekse proef is gestopt.',
     csrf: 'TikTok weigert de CSRF-validatie. De rechtstreekse actie is gestopt.',
     signing: 'Lokale TikTok-ondertekening is mislukt. Er is niets verstuurd.',
+    'signing-context': 'De botsessie mist een msToken voor chatverzending. De proef is vóór verzending gestopt.',
     'signing-version': 'TikTok gebruikt een onbekende ondertekeningsversie. De proef is gestopt.',
     rejected: 'TikTok heeft het rechtstreekse verzoek geweigerd.',
     empty: 'TikTok geeft een leeg antwoord. De rechtstreekse actie is niet bevestigd.',
@@ -46,15 +49,20 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     if (!value || /[\s;\r\n]/.test(value)) throw new DirectTikTokError('session');
   }
   if (!/^[\w.]{1,24}$/.test(credentials.botUsername)) throw new DirectTikTokError('identity');
+  if ((credentials.msToken !== undefined && !/^[\w=+/-]{1,1024}$/.test(credentials.msToken))
+    || (credentials.verifyFp !== undefined && !/^[\w.-]{1,200}$/.test(credentials.verifyFp))) throw new DirectTikTokError('session');
   const cookies = new Map<string, string>([
     ['sessionid', credentials.sessionId], ['sessionid_ss', credentials.sessionId],
     ['sid_tt', credentials.sessionId], ['tt-target-idc', credentials.targetIdc]
   ]);
+  if (credentials.msToken) cookies.set('msToken', credentials.msToken);
+  if (credentials.verifyFp) cookies.set('s_v_web_id', credentials.verifyFp);
   let verifiedUntil = 0;
   let csrfToken = '';
   let deviceId = '';
   let preparedFor = '';
   let webcastCsrf: ReturnType<typeof parseWebcastCsrf> | undefined;
+  let browserContext: BrowserContext = {};
   const userAgent = options.signRequest ? signingUserAgent
     : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
@@ -97,7 +105,8 @@ export function createDirectClient(credentials: DirectCredentials, request: type
       const equals = pair.indexOf('=');
       const name = pair.slice(0, equals);
       const value = pair.slice(equals + 1);
-      if (['passport_csrf_token', 'passport_csrf_token_default', 'tt_csrf_token', 'tt_chain_token', 'ttwid', 'msToken', 'csrf_session_id'].includes(name)
+      if (['passport_csrf_token', 'passport_csrf_token_default', 'tt_csrf_token', 'tt_chain_token', 'ttwid', 'msToken',
+        'csrf_session_id', 's_v_web_id', 'odin_tt', 'tt-target-idc-sign'].includes(name)
         && value && !/[\r\n;]/.test(value)) cookies.set(name, value);
     }
     return response;
@@ -153,6 +162,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     deviceId = '';
     preparedFor = '';
     webcastCsrf = undefined;
+    browserContext = {};
     const response = await raw(new URL(`https://www.tiktok.com/@${username}/live`), 'GET', 'https://www.tiktok.com/');
     const html = await readText(response, 2_000_000);
     if (options.signRequest) {
@@ -171,6 +181,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     }
     csrfToken = context.csrfToken;
     deviceId = context.wid;
+    browserContext = readBrowserContext(context);
     preparedFor = username;
   }
 
@@ -186,6 +197,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
       device_id: deviceId, room_id: roomId, content }).toString();
     let measurements: { signMs: number; rssMiB: number } | undefined;
     if (options.signRequest) {
+      addBrowserParameters(url, userAgent, browserContext, cookies.get('s_v_web_id'));
       url.searchParams.set('input_type', '0');
       url.searchParams.set('emotes_with_index', '');
       if (!webcastCsrf) {
@@ -209,11 +221,13 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     const prepared = await prepareMessage(roomId, username, content);
     return { sent: false, queryFields: [...prepared.url.searchParams.keys()],
       csrfMode: webcastCsrf?.mode ?? 'page-token', scriptVersion: options.signRequest ? signingSdkVersion : undefined,
+      context: inspectBrowserContext(prepared.url, cookies, browserContext),
       ...prepared.measurements };
   }
 
   async function sendMessage(roomId: string, username: string, content: string): Promise<{ messageId: string | null }> {
     const { url } = await prepareMessage(roomId, username, content);
+    if (options.signRequest && !url.searchParams.get('msToken')) throw new DirectTikTokError('signing-context');
     const json = await call(url, 'POST', `https://www.tiktok.com/@${username}/live`);
     if (json.status_code !== 0) throw new DirectTikTokError('rejected', 200,
       typeof json.status_code === 'number' ? json.status_code : undefined);

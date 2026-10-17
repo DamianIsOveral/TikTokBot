@@ -6,6 +6,7 @@ import { verifySigningAsset } from '../src/server/tiktok/signing-assets.ts';
 import { parseWebcastCsrf } from '../src/server/tiktok/csrf.ts';
 import { createDirectClient, DirectTikTokError } from '../src/server/tiktok/direct-client.ts';
 import type { SigningInput, DirectRequestSigner } from '../src/server/tiktok/signing-profile.ts';
+import { addBrowserParameters, inspectBrowserContext, readBrowserContext } from '../src/server/tiktok/browser-context.ts';
 
 const input: SigningInput = {
   url: 'https://webcast.tiktok.com/webcast/room/chat/?aid=1988&room_id=7300000000000000001&content=PRIVATE_MESSAGE',
@@ -135,4 +136,56 @@ test('andere, ontbrekende of tegenstrijdige scriptversie stopt vóór onderteken
     assert.equal(calls, 2);
     assert.equal(signed, false);
   }
+});
+
+test('lege msToken wordt als ontbrekende context gemeld en blokkeert de chat-POST', async () => {
+  const requests: { url: URL; init?: RequestInit }[] = [];
+  const emptyToken: DirectRequestSigner = async value => ({ signedUrl: value.url + suffix.replace('msToken=PRIVATE_MS', 'msToken='), signMs: 1, rssMiB: 64 });
+  const direct = createDirectClient(credentials, fakeRequests(requests), { signRequest: emptyToken });
+  const inspection = await direct.inspectMessage('7300000000000000001', 'streamer', 'PRIVATE_MESSAGE');
+  assert.equal(inspection.context.msTokenQueryPresent, false);
+  assert.equal(inspection.context.inputStatus, 'incomplete');
+  await assert.rejects(direct.sendMessage('7300000000000000001', 'streamer', 'PRIVATE_MESSAGE'), error => {
+    assert.ok(error instanceof DirectTikTokError);
+    assert.equal(error.kind, 'signing-context');
+    return true;
+  });
+  assert.ok(requests.every(request => request.init?.method !== 'POST'));
+});
+
+test('eigen botcontext komt in cookies, signer en query terecht zonder waarden in diagnostiek', async () => {
+  const requests: { url: URL; init?: RequestInit }[] = [];
+  const direct = createDirectClient({ ...credentials, msToken: 'PRIVATE_MS', verifyFp: 'verify_PRIVATE_FP' },
+    fakeRequests(requests), { signRequest: async value => {
+      assert.equal(value.msToken, 'PRIVATE_MS');
+      assert.ok(value.cookie?.includes('msToken=PRIVATE_MS'));
+      assert.ok(value.cookie?.includes('s_v_web_id=verify_PRIVATE_FP'));
+      assert.equal(new URL(value.url).searchParams.get('verifyFp'), 'verify_PRIVATE_FP');
+      return signer(value);
+    } });
+  const inspection = await direct.inspectMessage('7300000000000000001', 'streamer', 'PRIVATE_MESSAGE');
+  assert.equal(inspection.context.msTokenCookiePresent, true);
+  assert.equal(inspection.context.msTokenQueryPresent, true);
+  assert.equal(inspection.context.verifyFpQueryPresent, true);
+  assert.equal(inspection.context.inputStatus, 'present');
+  assert.ok(!/PRIVATE|https:/.test(JSON.stringify(inspection)));
+  assert.throws(() => validateSignedUrl({ ...input, msToken: 'OTHER_TOKEN' }, input.url + suffix));
+  assert.throws(() => createDirectClient({ ...credentials, msToken: 'bad;cookie' }));
+  assert.throws(() => createDirectClient({ ...credentials, verifyFp: 'bad\r\nheader' }));
+});
+
+test('browserparameters passen bij de signer-UA en gebruiken uitsluitend aanwezige paginagegevens', () => {
+  const url = new URL(input.url);
+  const context = readBrowserContext({ odinId: '7300000000000000002', webIdCreatedTime: 1700000000, user: { uid: '123' } });
+  addBrowserParameters(url, signingUserAgent, context, 'verify_PRIVATE_FP');
+  assert.equal(url.searchParams.get('browser_version'), signingUserAgent.slice('Mozilla/'.length));
+  assert.equal(url.searchParams.get('browser_name'), 'Mozilla');
+  assert.equal(url.searchParams.get('odinId'), '7300000000000000002');
+  assert.equal(url.searchParams.get('WebIdLastTime'), '1700000000');
+  const absent = new URL(input.url);
+  addBrowserParameters(absent, signingUserAgent, readBrowserContext({ odinId: 'PRIVATE_BAD', webIdCreatedTime: null }));
+  assert.equal(absent.searchParams.has('odinId'), false);
+  assert.equal(absent.searchParams.has('WebIdLastTime'), false);
+  assert.equal(readBrowserContext({ odinId: Number.MAX_SAFE_INTEGER + 1 }).odinId, undefined);
+  assert.equal(inspectBrowserContext(absent, new Map(), {}).inputStatus, 'incomplete');
 });

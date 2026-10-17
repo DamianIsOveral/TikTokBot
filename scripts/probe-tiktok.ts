@@ -15,7 +15,9 @@ try {
   const signer = signed ? await (await import('../src/server/tiktok/headless-signer.ts')).createHeadlessSigner() : undefined;
   const inspection = args.includes('--prepare-signed') ? createReadOnlyRequest() : undefined;
   const direct = createDirectClient({ sessionId: process.env.TIKTOK_SESSION_ID || '',
-    targetIdc: process.env.TIKTOK_TARGET_IDC || '', botUsername: config.botUsername }, inspection?.request ?? fetch, { signRequest: signer });
+    targetIdc: process.env.TIKTOK_TARGET_IDC || '', botUsername: config.botUsername,
+    msToken: process.env.TIKTOK_MS_TOKEN || undefined, verifyFp: process.env.TIKTOK_VERIFY_FP || undefined
+  }, inspection?.request ?? fetch, { signRequest: signer });
   await direct.verifyIdentity();
   console.log('Botsessie geldig en accountnaam gecontroleerd.');
   const content = `Botverbindingstest ${new Date().toISOString().slice(11, 19)} UTC`;

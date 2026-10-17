@@ -59,4 +59,5 @@ export function validateSignedUrl(input: SigningInput, signedUrl: string): void 
     || signingFields.filter(name => name !== 'msToken').some(name => !added.get(name))) {
     throw new Error('Onvolledige ondertekening.');
   }
+  if (input.msToken && added.get('msToken') !== input.msToken) throw new Error('Tokencontext is gewijzigd.');
 }
