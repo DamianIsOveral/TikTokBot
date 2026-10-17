@@ -26,6 +26,7 @@ export async function importUpstreamSigner(sourceDirectory: URL): Promise<Upstre
 
 export async function signWithUpstream(upstream: UpstreamSignerModule, source: string, input: SigningInput,
   pinned = false): Promise<string> {
+  if (input.method !== undefined || input.body !== undefined) throw new Error('Deze upstream-API ondersteunt geen POST-body.');
   const signer = await upstream.Signer.create({ bundleSource: source, userAgent: input.userAgent,
     cookie: input.cookie || '', storedToken: input.msToken, pinned });
   return signer.sign(input.url, upstream.PRODUCT.fetch);

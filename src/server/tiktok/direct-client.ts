@@ -66,20 +66,21 @@ export function createDirectClient(credentials: DirectCredentials, request: type
   const userAgent = options.signRequest ? signingUserAgent
     : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
-  async function raw(url: URL, method: 'GET' | 'POST' | 'HEAD', referer: string): Promise<Response> {
+  async function raw(url: URL, method: 'GET' | 'POST' | 'HEAD', referer: string, body?: string): Promise<Response> {
     if (!['https://www.tiktok.com', 'https://webcast.tiktok.com'].includes(url.origin)) {
       throw new DirectTikTokError('response');
     }
     let response: Response;
     try {
       response = await request(url, { method, redirect: 'error', signal: AbortSignal.timeout(10_000),
+        ...(body !== undefined ? { body } : {}),
         headers: {
           Cookie: [...cookies].filter(([key]) => key !== 'csrf_session_id' || url.hostname === 'webcast.tiktok.com')
             .map(([key, value]) => `${key}=${value}`).join('; '),
           'User-Agent': userAgent,
           Accept: 'application/json', Referer: referer,
           ...(method !== 'GET' ? { Origin: 'https://www.tiktok.com' } : {}),
-          ...(method === 'POST' ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+          ...(method === 'POST' ? { 'Content-Type': options.signRequest ? 'application/json' : 'application/x-www-form-urlencoded' } : {}),
           ...(method === 'POST' && !options.signRequest && csrfToken ? { 'tt-csrf-token': csrfToken } : {}),
           ...(method === 'POST' && options.signRequest && webcastCsrf ? { 'x-secsdk-csrf-token': webcastCsrf.token } : {}),
           ...(method === 'HEAD' ? { 'x-secsdk-csrf-request': '1', 'x-secsdk-csrf-version': '1.2.22' } : {}),
@@ -131,8 +132,8 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     return text;
   }
 
-  async function call(url: URL, method: 'GET' | 'POST', referer: string): Promise<JsonObject> {
-    const response = await raw(url, method, referer);
+  async function call(url: URL, method: 'GET' | 'POST', referer: string, body?: string): Promise<JsonObject> {
+    const response = await raw(url, method, referer, body);
     const text = await readText(response, 65_536);
     try { return object(JSON.parse(text)); }
     catch { throw new DirectTikTokError('response', response.status); }
@@ -198,20 +199,22 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     let measurements: { signMs: number; rssMiB: number } | undefined;
     if (options.signRequest) {
       addBrowserParameters(url, userAgent, browserContext, cookies.get('s_v_web_id'));
-      url.searchParams.set('input_type', '0');
-      url.searchParams.set('emotes_with_index', '');
       if (!webcastCsrf) {
         const response = await raw(new URL('https://webcast.tiktok.com/webcast/room/chat/'), 'HEAD', `https://www.tiktok.com/@${username}/live`);
         try { webcastCsrf = parseWebcastCsrf(response.headers.get('x-ware-csrf-token')); }
         catch { throw new DirectTikTokError('csrf'); }
       }
       try {
+        const payload = { room_id: roomId, content, emotes_with_index: '', input_type: 0,
+          client_start_timestamp_millisecond: Date.now() };
+        for (const [key, value] of Object.entries(payload)) url.searchParams.set(key, String(value));
+        const body = JSON.stringify(payload);
         const input = { url: url.href, userAgent, msToken: cookies.get('msToken'),
-          cookie: [...cookies].map(([key, value]) => `${key}=${value}`).join('; ') };
+          cookie: [...cookies].map(([key, value]) => `${key}=${value}`).join('; '), method: 'POST' as const, body };
         const result = await options.signRequest(input);
         validateSignedUrl(input, result.signedUrl);
         measurements = { signMs: result.signMs, rssMiB: result.rssMiB };
-        return { url: new URL(result.signedUrl), measurements };
+        return { url: new URL(result.signedUrl), body, measurements };
       } catch { throw new DirectTikTokError('signing'); }
     }
     return { url, measurements };
@@ -220,19 +223,22 @@ export function createDirectClient(credentials: DirectCredentials, request: type
   async function inspectMessage(roomId: string, username: string, content: string) {
     const prepared = await prepareMessage(roomId, username, content);
     return { sent: false, queryFields: [...prepared.url.searchParams.keys()],
+      method: 'POST', contentType: prepared.body === undefined ? 'application/x-www-form-urlencoded' : 'application/json',
+      bodyFields: prepared.body === undefined ? [] : Object.keys(JSON.parse(prepared.body)),
+      signingAdapter: options.signRequest ? 'upstream-bootstrap-post' : undefined,
       csrfMode: webcastCsrf?.mode ?? 'page-token', scriptVersion: options.signRequest ? signingSdkVersion : undefined,
       context: inspectBrowserContext(prepared.url, cookies, browserContext),
       ...prepared.measurements };
   }
 
   async function sendMessage(roomId: string, username: string, content: string): Promise<{ messageId: string | null }> {
-    const { url } = await prepareMessage(roomId, username, content);
+    const { url, body } = await prepareMessage(roomId, username, content);
     if (options.signRequest && !url.searchParams.get('msToken')) throw new DirectTikTokError('signing-context');
-    const json = await call(url, 'POST', `https://www.tiktok.com/@${username}/live`);
+    const json = await call(url, 'POST', `https://www.tiktok.com/@${username}/live`, body);
     if (json.status_code !== 0) throw new DirectTikTokError('rejected', 200,
       typeof json.status_code === 'number' ? json.status_code : undefined);
     const data = object(json.data);
-    const id = data.msg_id ?? data.id_str;
+    const id = data.msg_id_str ?? data.msg_id ?? data.id_str;
     return { messageId: typeof id === 'string' && /^\d+$/.test(id) ? id : null };
   }
 

@@ -24,7 +24,7 @@ try {
   if (inspection) {
     const roomId = await direct.resolveRoomId(config.username);
     console.log(JSON.stringify({ ...await direct.inspectMessage(roomId, config.username, content),
-      upstreamSigner: true, network: inspection.summary() }));
+      network: inspection.summary() }));
   } else if (args.length) {
     const { TikTokLiveConnection } = await loadConnector();
     const connection = new TikTokLiveConnection(config.username, config.options) as Connector & Pick<SdkConnection, 'roomId'>;

@@ -26,7 +26,7 @@ export const signingUserAgent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537
 export const signingFields = ['X-Dynosaur', 'msToken', 'X-Bogus', 'X-Gnarly'] as const;
 export const signingAssetPaths = signingAssets.map(asset => fileURLToPath(new URL(asset.name, signingDirectory)));
 
-export interface SigningInput { url: string; userAgent: string; msToken?: string; cookie?: string }
+export interface SigningInput { url: string; userAgent: string; msToken?: string; cookie?: string; method?: 'POST'; body?: string }
 export interface SigningResult { signedUrl: string; signMs: number; rssMiB: number }
 export type DirectRequestSigner = (input: SigningInput) => Promise<SigningResult>;
 
@@ -47,6 +47,19 @@ export function validateSigningInput(input: SigningInput): void {
     || (input.cookie !== undefined && (typeof input.cookie !== 'string' || input.cookie.length > 8192 || /[\r\n\x00]/.test(input.cookie)))
     || (input.msToken !== undefined && (!/^[\w=+/-]{1,1024}$/.test(input.msToken)))) {
     throw new Error('Ongeldige invoer voor de lokale ondertekening.');
+  }
+  if (input.method !== undefined || input.body !== undefined) {
+    if (input.method !== 'POST' || typeof input.body !== 'string' || input.body.length > 4096) throw new Error('Ongeldige POST-context.');
+    const body = JSON.parse(input.body);
+    const fields = ['room_id', 'content', 'emotes_with_index', 'input_type', 'client_start_timestamp_millisecond'];
+    if (!body || typeof body !== 'object' || Array.isArray(body)
+      || Object.keys(body).join(',') !== fields.join(',') || JSON.stringify(body) !== input.body
+      || typeof body.room_id !== 'string' || typeof body.content !== 'string' || !body.content || body.content.length > 200
+      || body.emotes_with_index !== '' || body.input_type !== 0
+      || !Number.isSafeInteger(body.client_start_timestamp_millisecond) || body.client_start_timestamp_millisecond <= 0
+      || fields.some(name => url.searchParams.getAll(name).length !== 1 || url.searchParams.get(name) !== String(body[name]))) {
+      throw new Error('Chatbody en query komen niet overeen.');
+    }
   }
 }
 
