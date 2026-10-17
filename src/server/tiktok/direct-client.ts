@@ -138,6 +138,16 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     verifiedUntil = Date.now() + 5 * 60_000;
   }
 
+  async function resolveRoomId(username: string): Promise<string> {
+    if (!/^[\w.]{1,24}$/.test(username)) throw new DirectTikTokError('response');
+    const url = new URL('https://www.tiktok.com/api-live/user/room/');
+    url.search = new URLSearchParams({ aid: '1988', uniqueId: username, sourceType: '54' }).toString();
+    const json = await call(url, 'GET', `https://www.tiktok.com/@${username}/live`);
+    const id = object(object(json.data).user).roomId;
+    if (json.statusCode || typeof id !== 'string' || !/^\d{10,25}$/.test(id)) throw new DirectTikTokError('response');
+    return id;
+  }
+
   async function prepareLive(username: string): Promise<void> {
     csrfToken = '';
     deviceId = '';
@@ -184,7 +194,8 @@ export function createDirectClient(credentials: DirectCredentials, request: type
         catch { throw new DirectTikTokError('csrf'); }
       }
       try {
-        const input = { url: url.href, userAgent, msToken: cookies.get('msToken') };
+        const input = { url: url.href, userAgent, msToken: cookies.get('msToken'),
+          cookie: [...cookies].map(([key, value]) => `${key}=${value}`).join('; ') };
         const result = await options.signRequest(input);
         validateSignedUrl(input, result.signedUrl);
         measurements = { signMs: result.signMs, rssMiB: result.rssMiB };
@@ -211,5 +222,5 @@ export function createDirectClient(credentials: DirectCredentials, request: type
     return { messageId: typeof id === 'string' && /^\d+$/.test(id) ? id : null };
   }
 
-  return { verifyIdentity, inspectMessage, sendMessage };
+  return { verifyIdentity, resolveRoomId, inspectMessage, sendMessage };
 }

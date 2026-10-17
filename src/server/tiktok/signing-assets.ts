@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { signingAssets, signingAssetPaths, signingDirectory } from './signing-profile.ts';
 
 export function verifySigningAsset(source: Uint8Array, expected: string): void {
@@ -33,6 +34,7 @@ export async function ensureSigningAssets(request: typeof fetch = fetch): Promis
     verifySigningAsset(source, asset.sha256);
     const temporary = `${path}.${randomUUID()}.tmp`;
     try {
+      await mkdir(dirname(path), { recursive: true });
       await writeFile(temporary, source, { flag: 'wx', mode: 0o600 });
       await rename(temporary, path);
     } finally { await unlink(temporary).catch(() => {}); }

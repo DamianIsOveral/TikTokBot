@@ -65,7 +65,8 @@ const signer: DirectRequestSigner = async value => {
   assert.equal(value.userAgent, signingUserAgent);
   assert.equal(new URL(value.url).searchParams.get('input_type'), '0');
   assert.equal(new URL(value.url).searchParams.get('emotes_with_index'), '');
-  assert.ok(!JSON.stringify(value).includes('PRIVATE_SESSION'));
+  assert.ok(value.cookie?.includes('sessionid=PRIVATE_SESSION'));
+  assert.ok(!value.url.includes('PRIVATE_SESSION'));
   return { signedUrl: value.url + suffix, signMs: 1, rssMiB: 64 };
 };
 
