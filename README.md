@@ -25,7 +25,7 @@ De commandeditor toont de echte verdeling over chatberichten. Lange tekst wordt 
 
 `TIKTOK_MODERATION_ENABLED=true` schakelt de directe moderatiekoppeling in. Het botaccount moet in de betreffende LIVE afzonderlijk mute- en/of blokkeerrechten hebben. Acties gebruiken gebruikersgegevens uit serverberichten of een actuele moderatielijst. Het bot modereert zichzelf, de host of andere moderators niet.
 
-Dempen: 5, 30, 60 of 300 seconden, of de gehele LIVE. Onder **Moderatie** staan de gedempte en geblokkeerde gebruikers met **Dempen opheffen** en **Deblokkeren**. Er is geen automatische herhaling van acties. Op 2026-10-17 accepteerde TikTok de vier acties op een toegestaan testaccount; de gebruiker bevestigde de werking. TikTok weigerde een aparte muteproef op een moderator.
+Dempen: 5, 30, 60 of 300 seconden, of de gehele LIVE. Via **⋯** naast een chatbericht kun je ook zonder filtermelding handmatig beoordelen. Onder **Moderatie** staan de gedempte en geblokkeerde gebruikers met **Dempen opheffen** en **Deblokkeren**. Er is geen automatische herhaling van acties. Op 2026-10-17 accepteerde TikTok de vier acties op een toegestaan testaccount; de gebruiker bevestigde de werking. TikTok weigerde een aparte muteproef op een moderator.
 
 Het moderatielog bewaart Discord-gebruiker, doel, actie, tijd, duur en resultaat. De intentie wordt vóór de TikTok-actie opgeslagen; bij opslagfalen wordt niet gehandeld. Onzekere resultaten blijven herkenbaar en worden niet opnieuw uitgevoerd. Maximaal 1000 gebeurtenissen/1 MiB, zonder cookies, tokens of ruwe API-antwoorden. CLI-proeven zijn apart herkenbaar als **CLI-test (geen Discordsessie)**. Dit log dekt acties via deze app, niet handmatige acties in TikTok zelf.
 

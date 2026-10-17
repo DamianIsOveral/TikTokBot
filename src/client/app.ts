@@ -25,6 +25,7 @@ function updateMode(live: boolean): void {
   badge.textContent = !live ? 'LOKALE TEST' : !state.serverConnected ? 'SERVER NIET BEREIKBAAR'
     : state.phase === 'connected' ? 'LIVE VERBONDEN' : state.phase === 'connecting' ? 'VERBINDEN…' : 'NIET VERBONDEN';
   badge.dataset.connected = String(live && state.serverConnected && state.phase === 'connected');
+  if (state.page === 'Moderatie') renderPage(render);
 }
 
 function updateConnection(data: StatusEvent | Snapshot): void {
@@ -102,6 +103,16 @@ element('#stop').onclick = async () => {
 element('#add').onclick = () => { addSample(); render(); };
 element('#search').addEventListener('input', render);
 element('#sort').addEventListener('change', render);
+element('#chat').addEventListener('click', event => {
+  const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-review]') : null;
+  const message = state.messages.find(item => item.id === Number(button?.dataset.review));
+  if (!message) return;
+  message.manualReview = true;
+  message.resolved = false;
+  state.filter = 'Alle';
+  document.querySelectorAll('[data-filter]').forEach(node => node.classList.toggle('selected', (node as HTMLElement).dataset.filter === 'Alle'));
+  render();
+});
 element('#tabs').addEventListener('click', event => {
   const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-filter]') : null;
   if (!button) return;

@@ -41,7 +41,7 @@ export function renderPage(onChange: () => void): void {
   } else if (state.page === 'Instellingen') {
     node.innerHTML = `<h2>Instellingen</h2><p>Kanaal: @${escapeHTML(state.username)}<br>Modus: lokaal webdashboard<br>
       TikTok-verbinding: zie status bovenaan</p><p>Klik bovenaan op Verbinden om de chat te laden zodra het kanaal live is.
-      Echte dempacties en synchronisatie tussen moderators vereisen daarna een afzonderlijk geteste koppeling.</p>
+      Onder Moderatie staan de herstelacties en het gedeelde actielog met Discord-gebruikers.</p>
       <p>TikTok-cookies en API-sleutels worden uitsluitend op de server ingesteld.</p>`;
     mountChatAccess(node);
   }

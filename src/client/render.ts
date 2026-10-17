@@ -11,10 +11,12 @@ export function render(): void {
   let rows = state.messages.filter(message => `${message.user} ${message.text}`.toLowerCase().includes(query));
   if (element<HTMLSelectElement>('#sort').value === 'new') rows = rows.slice().reverse();
   element('#chat').innerHTML = rows.map(message => {
-    const flagged = !message.resolved && classify(message.text, state.settings);
+    const flagged = !message.resolved && (message.manualReview || classify(message.text, state.settings));
     return `<div class="row ${flagged ? 'flagged' : ''}"><time>${escapeHTML(message.time)}</time>
       <div class="avatar">${avatar(message)}</div><strong>${escapeHTML(message.user)}</strong>
-      <p>${escapeHTML(message.text)}</p><span class="warning">${flagged ? '⚠' : ''}</span></div>`;
+      <p>${escapeHTML(message.text)}</p><button class="review-message" data-review="${message.id}"
+      aria-label="Beoordeel bericht van @${escapeHTML(message.user)}" title="Beoordelen: dempen of blokkeren"
+      ${flagged ? 'disabled' : ''}>${flagged ? '⚠' : '⋯'}</button></div>`;
   }).join('') || `<div class="empty">${state.liveMode && (!state.serverConnected || state.phase !== 'connected')
     ? 'Niet verbonden. Klik op Verbinden om de LIVE-chat te laden.' : 'Nog geen berichten.'}</div>`;
   const items = pending();
@@ -24,7 +26,7 @@ export function render(): void {
     .filter(message => state.filter === 'Alle' || classify(message.text, state.settings) === state.filter)
     .reverse().map(message => `<div class="card"><div class="cardtop"><div class="avatar">${avatar(message)}</div>
       <div class="cardbody"><time>${escapeHTML(message.time)}</time><strong>@${escapeHTML(message.user)}</strong>
-      <p>${escapeHTML(message.text)}</p><span class="tag">${escapeHTML(classify(message.text, state.settings))}</span></div></div>
+      <p>${escapeHTML(message.text)}</p><span class="tag">${escapeHTML(classify(message.text, state.settings) || 'Handmatig')}</span></div></div>
       <div class="actions"><button class="mute" data-action="mute" data-id="${message.id}" ${state.liveMode && (!state.moderation?.mute || !state.serverConnected || state.phase !== 'connected' || !message.userId || !message.secUid) ? 'disabled' : ''}
       title="${escapeHTML(state.liveMode ? state.moderation?.reason || 'Rechten worden gecontroleerd.' : 'Lokale demoactie')}">Dempen${state.liveMode ? '' : ' · demo'}</button>
       <button data-action="ban" data-id="${message.id}" ${state.liveMode && (!state.moderation?.ban || !state.serverConnected || state.phase !== 'connected' || !message.userId || !message.secUid) ? 'disabled' : ''}

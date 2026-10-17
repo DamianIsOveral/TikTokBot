@@ -25,9 +25,12 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
   let cancelRetry: (() => void) | undefined;
   let cancelStable: (() => void) | undefined;
   let isConnected = false;
+  let retryRequested = false;
+  let retryBlocked = false;
   const report = (text: string, phase?: Phase): void => { status = text; broadcast({ type: 'status', text, phase }); };
   async function stop() {
     wanted = false;
+    retryRequested = false;
     isConnected = false;
     cancelRetry?.(); cancelStable?.();
     cancelRetry = cancelStable = undefined;
@@ -43,7 +46,9 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
     const blocked = records.some(record => /WHITELIST|session|cookie|captcha|verify|unauthorized|forbidden/i.test(String(record.message || ''))
       || /PremiumFeature|SignAPIError|SignatureRateLimit/.test(String(record.name || record.constructor?.name || ''))
       || [401, 403, 429].includes(Number(record.status)));
-    if (!wanted || !config.autoReconnect || blocked || retries >= 5) return;
+    if (blocked) retryBlocked = true;
+    if (!wanted || !config.autoReconnect || retryBlocked || retries >= 5) return;
+    if (pending) { retryRequested = true; return; }
     const ms = [5000, 15_000, 30_000, 60_000, 120_000][retries++];
     report(`Niet verbonden · opnieuw proberen over ${ms / 1000}s (${retries}/5).`, 'disconnected');
     cancelRetry?.();
@@ -53,6 +58,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
     if (pending || connection) return;
     if (manual) { wanted = true; retries = 0; cancelRetry?.(); cancelRetry = undefined; }
     const attempt = ++generation;
+    retryRequested = retryBlocked = false;
     pending = true;
     report(`Verbinding maken met @${config.username}…`, 'connecting');
     let current: Connector | undefined;
@@ -101,7 +107,10 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       if (connection === current) connection = undefined;
       try { await current?.disconnect(); } catch {}
       if (attempt === generation) { isConnected = false; report(connectionErrorMessage(error), 'error'); retry(error); }
-    } finally { pending = false; }
+    } finally {
+      pending = false;
+      if (retryRequested && attempt === generation) { retryRequested = false; retry(); }
+    }
   }
   return { connect, stop, get status() { return status; }, get roomId() { return isConnected ? connection?.roomId : undefined; } };
 }

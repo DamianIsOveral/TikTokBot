@@ -186,3 +186,40 @@ test('trigger-, gebruikers- en batchcooldown blijven na reconnect bestaan', asyn
   instances[1]!.emit('chat', { content: '!second', user: { uniqueId: 'viewer1' } });
   await delay(10); assert.deepEqual(sent, ['!first']);
 });
+
+test('disconnect tijdens een trage connect plant pas na afronding één nieuwe poging', async t => {
+  const timers = scheduler();
+  const instances: Fake[] = [];
+  let finish!: () => void;
+  class Fake extends EventEmitter {
+    constructor() { super(); instances.push(this); }
+    connect() { return instances.length === 1 ? new Promise<void>(resolve => { finish = resolve; }) : Promise.resolve(); }
+    async disconnect() { this.emit('disconnected'); }
+    async sendMessage() { assert.fail(); }
+  }
+  const live = createLive(readConfig({}), () => {}, async () => ({ TikTokLiveConnection: Fake }),
+    undefined, undefined, undefined, timers.schedule);
+  t.after(() => live.stop());
+  const connecting = live.connect();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  instances[0]!.emit('disconnected');
+  assert.equal(timers.active().length, 0);
+  finish(); await connecting;
+  assert.equal(timers.active().length, 1); assert.equal(timers.active()[0]!.ms, 5000);
+  await timers.fire();
+  assert.equal(instances.length, 2); assert.match(live.status, /LIVE verbonden/);
+});
+
+test('authenticatiefout tijdens connect wordt niet door een latere netwerkfout herprobeerd', async t => {
+  const timers = scheduler();
+  class Fake extends EventEmitter {
+    constructor() { super(); }
+    async connect() { this.emit('error', { status: 403 }); throw new Error('Netwerk verbroken.'); }
+    async disconnect() { this.emit('disconnected'); }
+    async sendMessage() { assert.fail(); }
+  }
+  const live = createLive(readConfig({}), () => {}, async () => ({ TikTokLiveConnection: Fake }),
+    undefined, undefined, undefined, timers.schedule);
+  t.after(() => live.stop()); await live.connect();
+  assert.equal(timers.active().length, 0);
+});

@@ -5,7 +5,7 @@ import { displayTime } from './dom.js';
 import type { ChatCapabilities } from '../shared/capabilities.js';
 
 export type Page = 'Overzicht' | 'Livechat' | 'Moderatie' | 'Filters' | 'Commands' | 'Toegang' | 'Instellingen';
-export interface Message { id: number; user: string; text: string; time: string; resolved: boolean; userId?: string; secUid?: string }
+export interface Message { id: number; user: string; text: string; time: string; resolved: boolean; manualReview?: boolean; userId?: string; secUid?: string }
 interface DashboardState {
   settings: FilterSettings;
   messages: Message[];
@@ -34,7 +34,7 @@ export function addMessage(user: string, text: string, time = displayTime(), ide
 }
 
 export function pending(): Message[] {
-  return state.messages.filter(message => !message.resolved && classify(message.text, state.settings));
+  return state.messages.filter(message => !message.resolved && (message.manualReview || classify(message.text, state.settings)));
 }
 
 export function resetMessages(): void {

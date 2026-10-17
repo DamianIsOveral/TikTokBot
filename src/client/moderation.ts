@@ -8,11 +8,17 @@ const actionNames = { mute: 'Dempen', unmute: 'Dempen opheffen', ban: 'Blokkeren
 let pendingAccess: Promise<void> | undefined;
 
 export async function refreshModerationAccess(): Promise<void> {
+  if (!state.liveMode || !state.serverConnected || state.phase !== 'connected') {
+    state.moderation = { connected:false, enabled:false, mute:false, ban:false,
+      reason: !state.liveMode ? 'Lokale test: er worden geen TikTok-acties uitgevoerd.' : 'Verbind eerst met TikTok LIVE.' };
+    return;
+  }
   if (pendingAccess) return pendingAccess;
   pendingAccess = (async () => { try {
     const response = await fetch('/api/moderation');
     if (!response.ok) throw new Error();
-    state.moderation = await response.json() as Access;
+    const access = await response.json() as Access;
+    if (state.liveMode && state.serverConnected && state.phase === 'connected') state.moderation = access;
   } catch { state.moderation = { connected: false, enabled: false, mute: false, ban: false, reason: 'Moderatierechten konden niet worden gecontroleerd.' }; }
   })().finally(() => { pendingAccess = undefined; });
   return pendingAccess;
@@ -68,7 +74,9 @@ export function mountModeration(): void {
 
   async function loadList(kind: 'muted' | 'blocked') {
     const node = find(`[data-${kind}]`);
-    if (!state.moderation?.connected) { node.textContent = 'Niet verbonden met TikTok LIVE.'; return; }
+    if (!state.liveMode || !state.serverConnected || state.phase !== 'connected' || !state.moderation?.connected) {
+      node.textContent = !state.liveMode ? 'Niet beschikbaar in de lokale test.' : 'Niet verbonden met TikTok LIVE.'; return;
+    }
     const page = pages[kind];
     const cursor = cursors[kind][page] || '';
     try {

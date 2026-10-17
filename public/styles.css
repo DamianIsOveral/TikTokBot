@@ -235,7 +235,7 @@ input {
 }
 .row {
   display:grid;
-  grid-template-columns:43px 35px 105px 1fr 20px;
+  grid-template-columns:43px 35px 105px 1fr 32px;
   align-items:center;
   gap:12px;
   padding:13px 6px;
@@ -413,7 +413,7 @@ textarea {
   gap:8px
 }
 .row {
-  grid-template-columns:35px 29px 85px 1fr 16px;
+  grid-template-columns:35px 29px 85px 1fr 32px;
   gap:7px
 }
 main {
@@ -516,3 +516,4 @@ button:disabled {
 .moderation-lists button{margin:6px}
 .audit-entry{border-bottom:1px solid var(--line);padding:12px 0;overflow-wrap:anywhere}
 .audit-entry time{display:block;color:var(--muted)}
+.review-message{padding:4px;min-width:28px;color:var(--amber)}
