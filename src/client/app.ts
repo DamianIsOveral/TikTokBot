@@ -179,7 +179,7 @@ element('#reviews').addEventListener('click', async event => {
   if (!button || !message || message.resolved) return;
   const duration = Number(button.parentElement?.querySelector('select')?.value || 30);
   const action = button.dataset.action;
-  if (action !== 'mute' && action !== 'ban' && action !== 'ignore') return;
+  if (action !== 'mute' && action !== 'ban' && action !== 'mute-ban' && action !== 'ignore') return;
   button.disabled = true;
   await messageActions.perform(action, message.id, duration);
 });

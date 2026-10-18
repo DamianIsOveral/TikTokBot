@@ -14,6 +14,7 @@ export function moderationFeedback(audit: Pick<AuditStore, 'list'>, roomId: stri
       if (seen.has(key)) continue;
       seen.add(key);
       entries.push({ userId: entry.target.id, name: entry.target.name, action: entry.action,
+        ...(entry.target.displayName ? { displayName: entry.target.displayName } : {}),
         status: entry.status as ModerationFeedbackEntry['status'], at: entry.at,
         ...(entry.action === 'mute' ? { duration: entry.duration,
           // This is the requested expiry, not a verified TikTok state.

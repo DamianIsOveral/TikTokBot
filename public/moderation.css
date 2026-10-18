@@ -14,6 +14,8 @@
 .moderation-user{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;min-height:54px;padding:8px 0;border-bottom:1px solid #20303b}
 .moderation-user:last-child{border-bottom:0}
 .moderation-user>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#d2dfeb}
+.moderation-user strong,.moderation-user small{display:block;overflow:hidden;text-overflow:ellipsis}
+.moderation-user small,.dashboard-mutes small{margin-top:3px;color:var(--muted);font-size:11px}
 .moderation-user button{min-width:136px;padding:7px 10px;font-size:12px;border-radius:7px;color:#b6dcec}
 .moderation-user button:not(:disabled):hover{border-color:#438097;background:#1b3644}
 #otherpage .moderation-empty{display:grid;place-content:center;min-height:210px;margin:0;padding:24px;text-align:center;color:var(--muted);font-size:13px;line-height:1.6}

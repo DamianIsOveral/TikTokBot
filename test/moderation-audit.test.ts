@@ -50,6 +50,19 @@ test('actor uit een CLI-proef is herkenbaar system en kan geen Discordgebruiker 
   }
 });
 
+test('optional bounded target display names persist alongside canonical names and old records remain valid', async t => {
+  const path = join(await temporary(t), 'moderation-audit.json');
+  const store = createAuditStore(path, [fixture(1)], now);
+  const entry = await store.begin({ ...input, target: { ...input.target, displayName: 'Viewer 😀' } });
+  await store.finish(entry.id, 'accepted');
+  const entries = (await loadAuditStore(path)).list();
+  assert.deepEqual(entries[0].target, { id: '123', name: 'fake_target', displayName: 'Viewer 😀' });
+  assert.deepEqual(entries[1].target, input.target);
+  for (const displayName of ['', 'x'.repeat(101), 'line\nbreak', 'hidden\u202ename', 'control\u0085name']) {
+    await assert.rejects(store.begin({ ...input, target: { ...input.target, displayName } }), /Ongeldig moderatielog/);
+  }
+});
+
 test('actor, doel en lijsten zijn snapshots; caller kan toekomstige of opgeslagen events niet muteren', async () => {
   const initial = fixture(1);
   const store = createAuditStore(undefined, [initial], now);

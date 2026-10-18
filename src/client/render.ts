@@ -15,6 +15,7 @@ function actionButtons(message: Message): string {
   return `<div class="actions"><button class="mute" data-action="mute" data-id="${message.id}" ${mute ? 'disabled' : ''}
     title="${escapeHTML(mute)}">Dempen${state.liveMode ? '' : ' · demo'}</button>
     <button data-action="ban" data-id="${message.id}" ${ban ? 'disabled' : ''} title="${escapeHTML(ban)}">Blokkeren${state.liveMode ? '' : ' · demo'}</button>
+    <button data-action="mute-ban" data-id="${message.id}" ${mute || ban ? 'disabled' : ''} title="${escapeHTML(mute || ban || 'Eerst dempen met de gekozen demptijd, daarna blokkeren.')}">Dempen en blokkeren${state.liveMode ? '' : ' · demo'}</button>
     <button data-action="ignore" data-id="${message.id}">Negeren</button>
     <select aria-label="Demptijd voor ${escapeHTML(message.user)}"><option value="30">30 seconden</option><option value="5">5 seconden</option>
     <option value="60">1 minuut</option><option value="300">5 minuten</option><option value="0">Gehele LIVE</option></select>

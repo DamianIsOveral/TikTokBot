@@ -4,7 +4,7 @@ export interface AuditEntry {
   id: string;
   at: string;
   actor: { id: string; name: string };
-  target: { id: string; name: string };
+  target: { id: string; name: string; displayName?: string };
   roomId: string;
   action: AuditAction;
   duration?: number;
