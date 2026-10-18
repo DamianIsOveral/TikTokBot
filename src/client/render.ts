@@ -1,5 +1,5 @@
 import { element, escapeHTML } from './dom.js';
-import { classify } from './filters.js';
+import { automaticCategory } from './filters.js';
 import { pending, state } from './model.js';
 import type { Message } from './model.js';
 import { renderPage } from './pages.js';
@@ -24,9 +24,9 @@ export function render(): void {
   let rows = state.messages.filter(message => `${message.user} ${message.text}`.toLowerCase().includes(query));
   if (element<HTMLSelectElement>('#sort').value === 'new') rows = rows.slice().reverse();
   element('#chat').innerHTML = rows.map(message => {
-    const flagged = !message.resolved && (message.manualReview || classify(message.text, state.settings));
+    const flagged = !message.resolved && (message.manualReview || automaticCategory(message, state.settings));
     return `<div data-message="${message.id}" class="row ${flagged ? 'flagged' : ''}"><time>${escapeHTML(message.time)}</time>
-      <div class="avatar">${avatar(message)}</div><strong>${escapeHTML(message.user)}</strong>
+      <div class="avatar">${avatar(message)}</div><strong>${escapeHTML(message.user)}${message.isBot?'<small class="bot-label">BOT</small>':''}</strong>
       <p>${escapeHTML(message.text)}</p><button class="review-message" data-menu="${message.id}"
       aria-label="Acties voor @${escapeHTML(message.user)}" aria-haspopup="menu" aria-controls="message-menu"
       aria-expanded="${state.menuMessageId === message.id}" title="Berichtacties">⋯</button></div>`;
@@ -36,10 +36,10 @@ export function render(): void {
   element('#total').textContent = String(state.messages.length);
   element('#count').textContent = element('#badge').textContent = String(items.length);
   element('#reviews').innerHTML = items
-    .filter(message => state.filter === 'Alle' || classify(message.text, state.settings) === state.filter)
+    .filter(message => state.filter === 'Alle' || automaticCategory(message, state.settings) === state.filter)
     .reverse().map(message => `<div class="card"><div class="cardtop"><div class="avatar">${avatar(message)}</div>
       <div class="cardbody"><time>${escapeHTML(message.time)}</time><strong>@${escapeHTML(message.user)}</strong>
-      <p>${escapeHTML(message.text)}</p><span class="tag">${escapeHTML(classify(message.text, state.settings) || 'Handmatig')}</span></div></div>
+      <p>${escapeHTML(message.text)}</p><span class="tag">${escapeHTML(automaticCategory(message, state.settings) || 'Handmatig')}</span></div></div>
       ${actionButtons(message)}</div>`).join('')
     || '<div class="empty">✓ Geen berichten om te beoordelen.</div>';
   element('#activity').textContent = state.activity[0] || 'Nog geen lokale acties.';

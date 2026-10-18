@@ -21,9 +21,11 @@ interface CommandOptions {
   channel?: string;
   getLimits?: () => CommandLimits;
   signal?: AbortSignal;
+  metrics?:CommandMetrics;
 }
+export interface CommandMetrics {matched:number;sent:number;attempted:number;rateLimited:number;roleDenied:number;invalid:number;failed:number}
 
-export function createCommands({ send, active, botUsername, report, signal, wait = ms => delay(ms,undefined,{signal}), now = Date.now,
+export function createCommands({ send, active, botUsername, report, signal, metrics, wait = ms => delay(ms,undefined,{signal}), now = Date.now,
   getCommands = defaultCommands, channel='kanaal', getLimits = () => defaultCommandLimits,
   limiter = createCommandLimiter(now,getLimits) }: CommandOptions) {
   return async (message: TikTokMessage): Promise<void> => {
@@ -33,24 +35,25 @@ export function createCommands({ send, active, botUsername, report, signal, wait
     const command = String(message.content ?? message.comment ?? '').trim().toLowerCase();
     const definition = getCommands().find(item => item.enabled && (item.trigger === command || item.aliases?.includes(command)));
     if (!definition) return;
-    if(!mayTriggerCommand(definition.audience,message,channel))return;
+    if(metrics)metrics.matched++;
+    if(!mayTriggerCommand(definition.audience,message,channel)){if(metrics)metrics.roleDenied++;return;}
     const username=String(message.user?.uniqueId||message.user?.displayId||'kijker');
     const rendered=renderCommandTemplates(definition.responses,{username,
       displayname:typeof message.user?.nickname==='string'?message.user.nickname:username,channel,command:definition.trigger});
-    if(rendered.error){report(rendered.error);return;}
+    if(rendered.error){if(metrics)metrics.invalid++;report(rendered.error);return;}
     const plan = planResponses(rendered.responses,getLimits());
-    if (plan.error) { report(`Commando overgeslagen: ${plan.error}`); return; }
+    if (plan.error) { if(metrics)metrics.invalid++;report(`Commando overgeslagen: ${plan.error}`); return; }
     const ticket = limiter.reserve(plan.messages.length, definition.trigger, user, definition.cooldownSeconds);
-    if (!ticket) return;
+    if (!ticket) {if(metrics)metrics.rateLimited++;return;}
     try {
       for (const text of plan.messages) {
         await wait(ticket.waitMs());
         while(active() && !signal?.aborted && ticket.waitMs()>0)await wait(ticket.waitMs());
         const latest = getCommands().find(item => item.trigger === definition.trigger);
         if (!active() || signal?.aborted || !ticket.canSend() || JSON.stringify(latest) !== JSON.stringify(definition)) break;
-        try { await send(text); } finally { ticket.record(); }
+        try { if(metrics)metrics.attempted++;await send(text);if(metrics)metrics.sent++; } finally { ticket.record(); }
       }
-    } catch (error) { if(!signal?.aborted)report(messageErrorText(error)); }
+    } catch (error) { if(!signal?.aborted){if(metrics)metrics.failed++;report(messageErrorText(error));} }
     finally { ticket.close(); }
   };
 }

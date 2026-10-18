@@ -5,7 +5,8 @@ interface Context {
   moderation?: { connected: boolean; enabled: boolean; mute: boolean; ban: boolean; reason: string };
 }
 
-export function moderationDisabledReason(context: Context, target: { userId?: string; secUid?: string }, action: 'mute' | 'ban'): string {
+export function moderationDisabledReason(context: Context, target: { userId?: string; secUid?: string; isBot?: boolean }, action: 'mute' | 'ban'): string {
+  if(target.isBot)return 'Het botaccount kan zichzelf niet modereren.';
   if (!context.liveMode) return '';
   if (!context.serverConnected) return 'De verbinding met het dashboard is onderbroken.';
   if (context.phase !== 'connected') return 'Verbind eerst met TikTok LIVE.';

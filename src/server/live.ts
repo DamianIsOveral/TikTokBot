@@ -1,4 +1,5 @@
 import { createCommands } from './commands.ts';
+import type {CommandMetrics} from './commands.ts';
 import type { AppConfig } from './config.ts';
 import type { Connector, ConnectorLoader, TikTokMessage } from './types.ts';
 import type { LiveEvent, Phase } from '../shared/events.ts';
@@ -9,14 +10,14 @@ import { defaultCommandLimits } from '../shared/command-policy.ts';
 import { connectionErrorMessage, errorRecords } from './connection-errors.ts';
 import type { CommandSender } from './chat-access.ts';
 import { createCommandLimiter } from './command-limiter.ts';
-import { chatIdentity } from './chat-identity.ts';
+import { incomingChat } from './incoming-chat.ts';
 
 export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => void,
   load: ConnectorLoader = loadConnector, getCommands: () => readonly CommandDefinition[] = defaultCommands,
   canSend: () => boolean = () => false, send?: CommandSender,
   schedule: (callback: () => void, ms: number) => () => void = (callback, ms) => {
     const timer = setTimeout(callback, ms); timer.unref(); return () => clearTimeout(timer);
-  }, getLimits: () => CommandLimits = () => defaultCommandLimits) {
+  }, getLimits: () => CommandLimits = () => defaultCommandLimits, getBotUserId:()=>string|undefined=()=>undefined) {
   let connection: Connector | undefined;
   let pending = false;
   let generation = 0;
@@ -30,6 +31,9 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
   let isConnected = false;
   let retryRequested = false;
   let retryBlocked = false;
+  let reconnects=0;
+  let lastEventAt:string|null=null;
+  const commandMetrics:CommandMetrics={matched:0,sent:0,attempted:0,rateLimited:0,roleDenied:0,invalid:0,failed:0};
   const report = (text: string, phase?: Phase): void => { status = text; broadcast({ type: 'status', text, phase }); };
   async function stop() {
     activeCommands?.abort();
@@ -56,7 +60,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
     const ms = [5000, 15_000, 30_000, 60_000, 120_000][retries++];
     report(`Niet verbonden · opnieuw proberen over ${ms / 1000}s (${retries}/5).`, 'disconnected');
     cancelRetry?.();
-    cancelRetry = schedule(() => { cancelRetry = undefined; if (wanted) void connect(false); }, ms);
+    cancelRetry = schedule(() => { cancelRetry = undefined; if (wanted) {reconnects++;void connect(false);} }, ms);
   }
   async function connect(manual = true) {
     if (pending || connection) return;
@@ -79,14 +83,14 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       const command = createCommands({
         send: text => send ? send(text, current!, active) : current!.sendMessage(text), active: () => active() && canSend(),
         botUsername: config.botUsername, channel:config.username, report: text => broadcast({ type: 'bot', text }),
-        getCommands, getLimits, limiter, signal:commandAbort.signal
+        getCommands, getLimits, limiter, signal:commandAbort.signal,metrics:commandMetrics
       });
       current.on('chat', (data: TikTokMessage) => {
         if (!active()) return;
-        broadcast({ type: 'chat', user: String(data.user?.uniqueId || data.user?.displayId || data.uniqueId || 'onbekend').slice(0, 100),
-          text: String(data.content ?? data.comment ?? '').slice(0, 2000),
-          ...chatIdentity(data.user) });
-        if (config.botEnabled && canSend()) void command(data);
+        lastEventAt=new Date().toISOString();
+        const message=incomingChat(data,config.botUsername,getBotUserId());
+        broadcast(message);
+        if (!message.isBot && config.botEnabled && canSend()) void command(data);
       });
       current.on('error', (error: unknown) => {
         if (error && typeof error === 'object' && 'info' in error && error.info === 'Failed to send message.') return;
@@ -121,5 +125,6 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       if (retryRequested && attempt === generation) { retryRequested = false; retry(); }
     }
   }
-  return { connect, stop, get status() { return status; }, get roomId() { return isConnected ? connection?.roomId : undefined; } };
+  return { connect, stop, diagnostics:()=>({connected:isConnected,reconnects,lastEventAt,commands:{...commandMetrics}}),
+    get status() { return status; }, get roomId() { return isConnected ? connection?.roomId : undefined; } };
 }

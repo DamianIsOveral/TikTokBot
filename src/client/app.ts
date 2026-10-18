@@ -160,6 +160,7 @@ if (await requireUser()) {
   connection.subscribe();
   void connection.config().then(config => {
   state.username = config.username;
+  state.botUsername = config.botUsername;
   element('#channel').textContent = `@${config.username}`;
   if (state.page === 'Instellingen') renderPage(render);
   }).catch(() => {});

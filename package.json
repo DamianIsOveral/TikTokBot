@@ -13,6 +13,8 @@
     "start:server": "node --env-file-if-exists=.env src/server/main.ts",
     "dev": "npm run build && node --watch --env-file-if-exists=.env src/server/main.ts",
     "test": "npm run build && node --test test/*.test.ts",
+    "test:coverage": "npm run build && node --test --experimental-test-coverage --test-coverage-include=\"src/server/**/*.ts\" --test-coverage-include=\"src/shared/**/*.ts\" --test-coverage-lines=94 --test-coverage-branches=90 --test-coverage-functions=93 test/*.test.ts",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
     "probe:tiktok": "node --env-file-if-exists=.env scripts/probe-tiktok.ts",
     "probe:tiktok-signing": "node scripts/probe-tiktok-signing.ts",
     "inspect:tiktok-har": "node scripts/inspect-tiktok-har.ts",

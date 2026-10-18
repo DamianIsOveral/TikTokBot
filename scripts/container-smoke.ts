@@ -69,11 +69,11 @@ async function checkHttp(): Promise<void> {
   assert.deepEqual(await session.json(), { configured: true, authenticated: false });
   const rejectedLogin = await request('/auth/discord/callback?code=CI_FAKE_CODE&state=CI_INVALID_STATE', 302);
   assert.equal(rejectedLogin.headers.get('location'), '/login?error=state');
-  for (const path of ['/api/config', '/api/snapshot', '/api/commands', '/api/access', '/api/capabilities', '/api/moderation', '/api/moderation/audit']) {
+  for (const path of ['/api/config', '/api/snapshot', '/api/commands', '/api/access', '/api/capabilities', '/api/moderation', '/api/moderation/audit','/api/readiness','/api/diagnostics']) {
     await request(path, 401);
   }
   await request('/api/connect', 401, 'POST');
-  for (const path of ['/.env', '/.env.example', '/data/access.json', '/secrets/discord-client-secret',
+  for (const path of ['/.env', '/.env.example', '/data/access.json','/data/tiktok-session.json', '/secrets/discord-client-secret',
     '/.dev_docs/progress.md', '/.local-archive/signing-research/upstream/vendor/bootstrap.js', '/src/server/config.ts']) {
     await request(path, 404);
   }
@@ -108,6 +108,10 @@ try {
     const intent = await audit.begin({ actor:{id:'${adminId}',name:'CI admin'}, target:{id:'456',name:'CI viewer'},
       roomId:'7300000000000000001', action:'mute', duration:30 });
     await audit.finish(intent.id,'accepted');`);
+  inside(`import {loadSessionState} from '/app/src/server/tiktok/session-state.ts';
+    const state=await loadSessionState('/app/data/tiktok-session.json',
+      {botUsername:'ci_bot',sessionId:'CI_FAKE_SESSION',targetIdc:'test',msToken:'CI_FAKE_TOKEN',verifyFp:'verify_CI_FAKE'});
+    state.jar.absorb(new Headers({'Set-Cookie':'msToken=CI_FAKE_ROTATED; Max-Age=3600'}));await state.flush();`);
   stopAndRemove();
   start(); await ready(); await checkHttp();
   inside(`import assert from 'node:assert/strict'; import { statSync } from 'node:fs';
@@ -123,7 +127,11 @@ try {
     const audit = await loadAuditStore('/app/data/moderation-audit.json');
     assert.equal(audit.list().length,1); assert.equal(audit.list()[0].actor.id,'${adminId}');
     assert.equal(audit.list()[0].status,'accepted');
-    for (const path of ['/app/data/commands.json', '/app/data/access.json','/app/data/moderation-audit.json']) assert.equal(statSync(path).mode & 0o777, 0o600);`);
+    const {loadSessionState}=await import('/app/src/server/tiktok/session-state.ts');
+    const state=await loadSessionState('/app/data/tiktok-session.json',
+      {botUsername:'ci_bot',sessionId:'CI_FAKE_SESSION',targetIdc:'test',msToken:'CI_FAKE_TOKEN',verifyFp:'verify_CI_FAKE'});
+    assert.equal(state.jar.cookies.get('msToken'),'CI_FAKE_ROTATED');
+    for (const path of ['/app/data/commands.json', '/app/data/access.json','/app/data/moderation-audit.json','/app/data/tiktok-session.json']) assert.equal(statSync(path).mode & 0o777, 0o600);`);
   stopAndRemove();
   console.log('Containercheck geslaagd: health, login/API-gates, privébestanden, non-root/read-only, shutdown en databehoud.');
 } finally {

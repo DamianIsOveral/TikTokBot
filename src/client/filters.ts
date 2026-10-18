@@ -32,3 +32,7 @@ export function classify(text: string, settings: FilterSettings): Category | nul
   if (settings.swearing && words.some(word => text.toLowerCase().includes(word))) return 'Schelden';
   return null;
 }
+
+export function automaticCategory(message:{text:string;isBot?:boolean},settings:FilterSettings):Category|null {
+  return message.isBot===true ? null : classify(message.text,settings);
+}

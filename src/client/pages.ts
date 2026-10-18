@@ -5,6 +5,7 @@ import { mountCommands } from './commands.js';
 import { mountAccess } from './access.js';
 import { mountChatAccess } from './capabilities.js';
 import { mountModeration } from './moderation.js';
+import {mountDiagnostics} from './diagnostics.js';
 
 export function renderPage(onChange: () => void): void {
   const node = element('#otherpage');
@@ -39,10 +40,11 @@ export function renderPage(onChange: () => void): void {
       onChange();
     };
   } else if (state.page === 'Instellingen') {
-    node.innerHTML = `<h2>Instellingen</h2><p>Kanaal: @${escapeHTML(state.username)}<br>Modus: lokaal webdashboard<br>
+    node.innerHTML = `<h2>Instellingen</h2><p>Kanaal: @${escapeHTML(state.username)}<br>Botaccount: @${escapeHTML(state.botUsername)}<br>Modus: lokaal webdashboard<br>
       TikTok-verbinding: zie status bovenaan</p><p>Klik bovenaan op Verbinden om de chat te laden zodra het kanaal live is.
       Onder Moderatie staan de herstelacties en het gedeelde actielog met Discord-gebruikers.</p>
       <p>TikTok-cookies en API-sleutels worden uitsluitend op de server ingesteld.</p>`;
     mountChatAccess(node);
+    mountDiagnostics(node);
   }
 }

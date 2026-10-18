@@ -18,14 +18,18 @@ Controleer vooraf of poort 3000 vrij is. Geen tweede replica starten.
 
 De image draait als niet-root met uitsluitend runtime-dependencies en vooraf gecontroleerde
 openbare signerbestanden. Secrets komen pas bij starten binnen; niet via build arguments.
-`data/commands.json`, `data/access.json` en `data/moderation-audit.json` staan in het persistente volume. Back-up dat volume.
+`data/commands.json`, `data/access.json`, `data/moderation-audit.json` en in direct-modus `data/tiktok-session.json` staan in het persistente volume. Het sessiebestand bevat logincredentials: houd het volume en eventuele back-ups privé. Linuxbestandsrechten zijn0600.
 Containerhealth controleert alleen de webserver, niet of TikTok LIVE is of tokens geldig zijn.
 
 Voor gemounte secretbestanden worden deze varianten ondersteund:
 `DISCORD_CLIENT_SECRET_FILE`, `EULER_API_KEY_FILE`, `TIKTOK_SESSION_ID_FILE`,
 `TIKTOK_TARGET_IDC_FILE`, `TIKTOK_MS_TOKEN_FILE`, `TIKTOK_VERIFY_FP_FILE`.
 Gebruik per instelling de waarde óf de bestandsvariant. Mount bestanden read-only, leesbaar voor UID1000.
-Wijzigingen aan credentials vereisen een herstart. De botcookieverversingen bestaan uitsluitend in RAM.
+Wijzigingen aan credentials vereisen een herstart. Ontvangen cookie-rotaties, expiries en verwijderingen worden atomair opgeslagen; ongewijzigde bootstrapcredentials gebruiken de bewaarde state. Nieuwe env/secretfilecredentials vervangen die state voor de volgende sessie. Beschadigde of onveilig leesbare state blokkeert startup; bewaar die uitsluitend lokaal voor onderzoek en herstel daarna met actuele botcookies. Dit automatiseert geen herlogin of challenge-oplossing.
+
+In direct-modus ontvangt de SDK zonder TikTok-accountcookies; de lokale sender beheert ze apart.
+Instellingen toont sessiestatus en serverdiagnose. `/api/readiness` en `/api/diagnostics` zijn authenticated JSON-interfaces;
+gebruik ze niet als Docker-healthcheck. `/health` blijft proces-liveness.
 
 `LIVE_AUTO_RECONNECT=true` herstelt een onderbroken verbinding met begrensde wachttijden;
 Stop annuleert herstel. `LIVE_AUTO_CONNECT=true` maakt na starten automatisch een verbinding;

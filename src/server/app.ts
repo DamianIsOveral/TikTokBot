@@ -22,6 +22,7 @@ import type { ChatAccess } from './chat-access.ts';
 import { createAuditStore } from './moderation-audit.ts';
 import type { AuditStore } from '../shared/moderation.ts';
 import { createModerationRoutes } from './http/moderation-routes.ts';
+import {routeDiagnostics} from './http/diagnostic-routes.ts';
 
 export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, commands = createCommandStore(),
   access = createAccessStore(config.discord.adminIds), provider?: DiscordProvider, accountReader?: AccountReader,
@@ -38,7 +39,7 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
     session.receive(event);
   }, loadConnector, () => commands.list(), capabilities.canSend,
     direct ? (text, connection, active) => direct.send(text, connection.roomId, active) : undefined,
-    undefined,()=>commands.limits());
+    undefined,()=>commands.limits(),()=>direct?.botUserId());
   void capabilities.refresh();
   if (config.autoConnect) void live.connect();
   const rightsTimer = setInterval(() => { void capabilities.refresh(); }, 60_000);
@@ -68,6 +69,7 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
     if (await routeAccess(req, res, access, user, () => { auth.revalidate(); events.disconnect(); })) return;
     if (await routeModeration(req, res, user, () => !!auth.user(req))) return;
     if (await routeCapabilities(req, res, capabilities)) return;
+    if(routeDiagnostics(req,res,live,capabilities,config.botEnabled,direct))return;
     if (await routeCommands(req, res, commands, config.botEnabled, capabilities,
       revision => events.broadcast({type:'commands-changed',revision}))) return;
     if (!routeApi(req, res, { config, live, session, events, authorizeEvents: () => !!auth.user(req) })) await serveAsset(req, res);

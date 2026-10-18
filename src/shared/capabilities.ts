@@ -4,4 +4,6 @@ export interface ChatCapabilities {
   moderation: boolean;
   reason: string;
   checkedAt: string | null;
+  session?:{state:'checking'|'healthy'|'stale'|'challenged'|'rate-limited'|'invalid'|'unavailable'|'stopped';
+    persistent:boolean;cookieUpdatedAt:string|null};
 }

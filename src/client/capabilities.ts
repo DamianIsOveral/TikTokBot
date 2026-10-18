@@ -15,7 +15,10 @@ export function showChatAccess(value: ChatCapabilities): void {
 
 function describe(value: ChatCapabilities): string {
   const checked = value.checkedAt ? new Date(value.checkedAt).toLocaleTimeString('nl-NL') : 'nog niet';
-  return `${value.reason} Laatst gecontroleerd: ${checked}.`;
+  const labels={checking:'Controleren',healthy:'Gezond',stale:'Verouderde cookies/context',challenged:'Browserverificatie nodig',
+    'rate-limited':'TikTok-verzendlimiet',invalid:'Ongeldige botsessie',unavailable:'Niet beschikbaar',stopped:'Gestopt'};
+  const session=value.session?` Botsessie: ${labels[value.session.state]}. Cookieopslag: ${value.session.persistent?'persistent op server':'alleen geheugen'}.`:'';
+  return `${value.reason} Laatst gecontroleerd: ${checked}.${session}`;
 }
 
 export function mountChatAccess(root: HTMLElement): void {

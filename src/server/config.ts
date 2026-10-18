@@ -48,7 +48,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     directCredentials: chatTransport === 'direct' ? { sessionId: credentials[1]!, targetIdc: credentials[2]!, botUsername,
       msToken: env.TIKTOK_MS_TOKEN, verifyFp: env.TIKTOK_VERIFY_FP } : undefined,
     discord: readDiscordConfig(env, host, port),
-    options: credentials.every(Boolean) ? {
+    options: chatTransport==='direct'?{processInitialData:false,signApiKey:credentials[0],authenticateWs:false}:credentials.every(Boolean) ? {
       processInitialData: false, signApiKey: credentials[0], authenticateWs: true,
       session: { cookie: { type: 'cookie', value: { sessionId: credentials[1]!, ttTargetIdc: credentials[2]! } } }
     } : { processInitialData: false } };

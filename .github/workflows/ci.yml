@@ -37,4 +37,5 @@ jobs:
         run: node scripts/check-tracked.ts
       - run: npm ci
       - run: npm run check
-      - run: npm test
+      - run: npm run test:coverage
+      - run: npm run audit:prod

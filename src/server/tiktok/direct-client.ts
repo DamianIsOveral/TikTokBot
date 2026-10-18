@@ -3,11 +3,12 @@ import { assertSigningVersion, signingSdkVersion, signingUserAgent, validateSign
 import type { DirectRequestSigner } from './signing-profile.ts';
 import { addBrowserParameters, inspectBrowserContext, readBrowserContext } from './browser-context.ts';
 import type { BrowserContext } from './browser-context.ts';
-import { createSessionCookies } from './session-cookies.ts';
+import { createBotCookies } from './session-cookies.ts';
+import type {SessionCookies} from './session-cookies.ts';
 import { createDirectModeration } from './moderation-client.ts';
 
 export interface DirectCredentials { sessionId: string; targetIdc: string; botUsername: string; msToken?: string; verifyFp?: string }
-export type DirectFailure = 'session' | 'identity' | 'challenge' | 'csrf' | 'signing' | 'signing-context' | 'signing-version' | 'rejected' | 'empty' | 'network' | 'response' | 'inactive' | 'permission' | 'target-role';
+export type DirectFailure = 'session' | 'session-storage' | 'identity' | 'challenge' | 'csrf' | 'signing' | 'signing-context' | 'signing-version' | 'rejected' | 'empty' | 'network' | 'response' | 'inactive' | 'permission' | 'target-role';
 
 export class DirectTikTokError extends Error {
   readonly kind: DirectFailure;
@@ -28,9 +29,11 @@ function object(value: unknown): JsonObject {
 }
 
 export function directErrorText(error: unknown): string {
+  if(error instanceof DirectTikTokError&&error.status===429)return 'TikTok beperkt het aantal verzoeken (429). Controleer de botsessie voordat je verzending hervat.';
   const kind = error instanceof DirectTikTokError ? error.kind : 'network';
   const messages: Record<DirectFailure, string> = {
     session: 'TikTok herkent de botsessie niet. Controleer de botcookies.',
+    'session-storage':'De lokale botsessie kon niet veilig worden bewaard. Controleer de privéopslag op de server.',
     identity: 'De TikTok-sessie hoort niet bij het ingestelde botaccount. Verzenden is geblokkeerd.',
     challenge: 'TikTok vraagt browserverificatie. De rechtstreekse proef is gestopt.',
     csrf: 'TikTok weigert de CSRF-validatie. De rechtstreekse actie is gestopt.',
@@ -49,20 +52,15 @@ export function directErrorText(error: unknown): string {
 }
 
 export function createDirectClient(credentials: DirectCredentials, request: typeof fetch = fetch,
-  options: { signRequest?: DirectRequestSigner } = {}) {
+  options: { signRequest?: DirectRequestSigner;cookieJar?:SessionCookies;flushCookies?:()=>Promise<void> } = {}) {
   for (const value of [credentials.sessionId, credentials.targetIdc]) {
     if (!value || /[\s;\r\n]/.test(value)) throw new DirectTikTokError('session');
   }
   if (!/^[\w.]{1,24}$/.test(credentials.botUsername)) throw new DirectTikTokError('identity');
   if ((credentials.msToken !== undefined && !/^[\w=+/-]{1,1024}$/.test(credentials.msToken))
     || (credentials.verifyFp !== undefined && !/^[\w.-]{1,200}$/.test(credentials.verifyFp))) throw new DirectTikTokError('session');
-  const jar = createSessionCookies([
-    ['sessionid', credentials.sessionId], ['sessionid_ss', credentials.sessionId],
-    ['sid_tt', credentials.sessionId], ['tt-target-idc', credentials.targetIdc]
-  ]);
+  const jar = options.cookieJar||createBotCookies(credentials);
   const { cookies } = jar;
-  if (credentials.msToken) cookies.set('msToken', credentials.msToken);
-  if (credentials.verifyFp) cookies.set('s_v_web_id', credentials.verifyFp);
   let verifiedUntil = 0;
   let botUserId = '';
   let csrfToken = '';
@@ -78,8 +76,10 @@ export function createDirectClient(credentials: DirectCredentials, request: type
       throw new DirectTikTokError('response');
     }
     let response: Response;
+    jar.prune();
+    try{await options.flushCookies?.();}catch{throw new DirectTikTokError('session-storage');}
+    if(!cookies.get('sessionid'))throw new DirectTikTokError('session');
     try {
-      jar.prune();
       response = await request(url, { method, redirect: 'error', signal: AbortSignal.timeout(10_000),
         ...(body !== undefined ? { body } : {}),
         headers: {
@@ -97,6 +97,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
       });
     } catch { throw new DirectTikTokError('network'); }
     jar.absorb(response.headers);
+    try{await options.flushCookies?.();}catch{throw new DirectTikTokError('session-storage');}
     if (response.headers.get('x-tt-verify-id')) throw new DirectTikTokError('challenge', response.status);
     if (!response.ok) {
       let apiCode: number | undefined;
@@ -141,6 +142,7 @@ export function createDirectClient(credentials: DirectCredentials, request: type
 
   async function verifyIdentity(): Promise<void> {
     verifiedUntil = 0;
+    botUserId='';
     const json = await call(new URL('https://www.tiktok.com/passport/web/account/info/?aid=1988'), 'GET', 'https://www.tiktok.com/');
     const data = object(json.data);
     if (typeof data.username !== 'string' || !data.user_id || data.error_code) throw new DirectTikTokError('session');
@@ -299,5 +301,5 @@ export function createDirectClient(credentials: DirectCredentials, request: type
       return result;
     }
   });
-  return { verifyIdentity, resolveRoomId, inspectMessage, sendMessage, moderation };
+  return { verifyIdentity, resolveRoomId, inspectMessage, sendMessage, moderation,botUserId:()=>botUserId };
 }

@@ -23,7 +23,7 @@ export function routeApi(req: IncomingMessage, res: ServerResponse, services: Se
     json({ ok: true, app: 'faynominaal-live' }); return true;
   }
   if (req.url === '/api/config' && req.method === 'GET') {
-    json({ username: config.username, botEnabled: config.botEnabled }); return true;
+    json({ username: config.username, botUsername:config.botUsername, botEnabled: config.botEnabled }); return true;
   }
   if (req.url === '/api/snapshot' && req.method === 'GET') {
     json(session.snapshot()); return true;

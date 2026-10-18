@@ -84,7 +84,7 @@ test('HTTP beschermt secrets en weigert cross-origin mutaties', async t => {
       queue.push(new URL(match[1], base + path).pathname);
     }
   }
-  assert.equal(modules.size, 19);
+  assert.equal(modules.size, 20);
   for (const path of ['/.env', '/src/server/config.ts', '/assets/app.ts', '/.git/config', '/.local-archive/faynominaalbot/.env']) {
     assert.equal((await fetch(base + path)).status, 404);
   }
@@ -94,7 +94,8 @@ test('HTTP beschermt secrets en weigert cross-origin mutaties', async t => {
   assert.equal((await fetch(base + '/api/stop', { method: 'POST',
     headers: { Origin: base, 'X-Requested-With': 'faynominaal' } })).status, 202);
   const publicConfig = await (await fetch(base + '/api/config')).json();
-  assert.deepEqual(Object.keys(publicConfig).sort(), ['botEnabled', 'username']);
+  assert.deepEqual(Object.keys(publicConfig).sort(), ['botEnabled', 'botUsername', 'username']);
+  assert.equal(publicConfig.botUsername,'faynominaalbot');
   const rejected = await new Promise((resolve, reject) => {
     const request = http.get(base, { headers: { Host: 'evil.example' } }, response => {
       response.resume(); resolve(response.statusCode);
