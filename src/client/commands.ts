@@ -37,6 +37,9 @@ export function mountCommands(): void {
       <button type="button" data-jump hidden>Toon wijzigingen</button></div></div>
       <p data-external class="command-external" role="status" hidden></p>
       <fieldset data-limits class="command-card command-limits"><legend>Globale botberichtlimieten</legend>
+      <p class="command-safety-note" role="note"><strong>Let op met automatische berichten.</strong>
+      TikTok kan automatische en herhaalde reacties streng filteren. Verhoog de globale limieten voorzichtig en controleer wat er werkelijk in de LIVE verschijnt.
+      Deze limieten garanderen niet dat berichten zichtbaar worden of dat een account geen beperking krijgt.</p>
       <div class="command-fields"><label>Seconden tussen berichten<input data-interval type="number" min="30" max="300" required value="30"></label>
       <label>Maximaal berichten per uur<input data-hour type="number" min="5" max="120" required value="20"></label></div>
       <p>Gedeeld door alle commands en kijkers, ook binnen lange antwoorden. Een vol uurvenster slaat nieuwe opdrachten over.

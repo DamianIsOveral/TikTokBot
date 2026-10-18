@@ -11,6 +11,7 @@ import { connectionErrorMessage, errorRecords } from './connection-errors.ts';
 import type { CommandSender } from './chat-access.ts';
 import { createCommandLimiter } from './command-limiter.ts';
 import { incomingChat } from './incoming-chat.ts';
+import { createLiveActivity } from './live-activity.ts';
 
 export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => void,
   load: ConnectorLoader = loadConnector, getCommands: () => readonly CommandDefinition[] = defaultCommands,
@@ -80,6 +81,14 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       connection = current;
       let connected = false;
       const active = () => connected && connection === current && attempt === generation;
+      const activity = createLiveActivity();
+      for (const source of ['member', 'gift', 'follow', 'share'] as const) {
+        current.on(source, data => {
+          if (!active()) return;
+          const event = activity(source, data);
+          if (event) { lastEventAt = new Date().toISOString(); broadcast(event); }
+        });
+      }
       const command = createCommands({
         send: text => send ? send(text, current!, active) : current!.sendMessage(text), active: () => active() && canSend(),
         botUsername: config.botUsername, channel:config.username, report: text => broadcast({ type: 'bot', text }),
@@ -125,6 +134,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       if (retryRequested && attempt === generation) { retryRequested = false; retry(); }
     }
   }
-  return { connect, stop, diagnostics:()=>({connected:isConnected,reconnects,lastEventAt,commands:{...commandMetrics}}),
+  return { connect, stop, commandStatus: () => limiter.snapshot(),
+    diagnostics:()=>({connected:isConnected,reconnects,lastEventAt,commands:{...commandMetrics}}),
     get status() { return status; }, get roomId() { return isConnected ? connection?.roomId : undefined; } };
 }

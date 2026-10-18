@@ -24,12 +24,16 @@ import type { AuditStore } from '../shared/moderation.ts';
 import { createModerationRoutes } from './http/moderation-routes.ts';
 import {routeDiagnostics} from './http/diagnostic-routes.ts';
 import {createCredentialRoutes} from './http/credential-routes.ts';
+import { createFilterStore } from './filter-store.ts';
+import { routeFilters } from './http/filter-routes.ts';
+import { createBrandingStore } from './branding-store.ts';
+import { routeBranding, routeBrandingIcon } from './http/branding-routes.ts';
 
 export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, commands = createCommandStore(),
   access = createAccessStore(config.discord.adminIds), provider?: DiscordProvider, accountReader?: AccountReader,
-  directOptions?: DirectChatOptions, audit: AuditStore = createAuditStore()) {
+  directOptions?: DirectChatOptions, audit: AuditStore = createAuditStore(), filters = createFilterStore(), branding = createBrandingStore()) {
   const events = createEventStream();
-  const session = createSession(events.broadcast);
+  const session = createSession(events.broadcast, 500, () => filters.snapshot());
   if (config.chatTransport === 'direct' && !config.directCredentials) throw new Error('Directe chatconfiguratie ontbreekt.');
   const publish = (value: ReturnType<ChatAccess['snapshot']>) => session.receive({ type: 'capabilities', value });
   const direct = config.chatTransport === 'direct' && config.directCredentials
@@ -50,6 +54,7 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
   const routeCredentials=createCredentialRoutes(config,direct,live);
   const server = http.createServer(async (req, res) => {
     if (!secureRequest(req, res, config)) return;
+    if (routeBrandingIcon(req, res, branding, config.username)) return;
     if (req.url === '/health' && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
       res.end('{"ok":true,"app":"faynominaal-live"}'); return;
@@ -69,6 +74,8 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
     }
     if (req.url?.split('?')[0] === '/login') { res.writeHead(302, { Location: '/' }).end(); return; }
     if (await routeAccess(req, res, access, user, () => { auth.revalidate(); events.disconnect(); })) return;
+    if (await routeFilters(req, res, filters, value => events.broadcast({ type: 'filters-changed', value }))) return;
+    if (await routeBranding(req, res, branding, user, () => auth.user(req)?.role === 'admin')) return;
     if (await routeModeration(req, res, user, () => !!auth.user(req))) return;
     if(await routeCredentials(req,res,user,()=>auth.user(req)?.role==='admin'))return;
     if (await routeCapabilities(req, res, capabilities)) return;

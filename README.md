@@ -13,13 +13,21 @@ Open http://127.0.0.1:3000. De Windows-snelkoppeling start de server indien nodi
 
 Discord vereist `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` en `DISCORD_ADMIN_IDS`. Registreer exact `http://127.0.0.1:3000/auth/discord/callback`. Alleen toegelaten Discord-IDs krijgen toegang; beheerders beheren die lijst onder **Toegang**. Alle gebruikers bedienen dezelfde bot. Na een serverherstart moet je opnieuw inloggen.
 
+Onder **Toegang** kun je per Discord-ID een opmerking van maximaal 120 tekens bewaren, ook bij vaste beheerders. Deze opmerkingen wijzigen geen rechten.
+
 **Compacte weergave** verkleint de tussenruimte en toont commandokaarten naast elkaar als er ruimte is. Deze voorkeur blijft in je browser bewaard. De commandeditor toont onopgeslagen wijzigingen in amber, bevestigde opslag in groen en fouten in rood. **Toon wijzigingen** springt naar de bewerking. Bij navigeren, herladen of uitloggen word je gewaarschuwd; je kunt opslaan, teruggaan of expliciet verwerpen.
 
 **Gebruikerskleuren** is een aparte browservoorkeur: dezelfde @naam houdt dezelfde leesbare kleur. **MOD** markeert door TikTok bevestigde moderators; **BOT** blijft het eigen botaccount aanduiden. De navigatie gebruikt vaste icoon- en tekstkolommen.
 
 ## Samen gebruiken
 
-Alle toegelaten Discord-gebruikers delen één LIVE-verbinding, bot, commandoconfiguratie en moderatielog. Er zijn maximaal tien gelijktijdige chatstreams (tabs). Verbinden/Stop heeft effect voor iedereen. Bij gelijktijdig opslaan wint één revisie; een verouderde versie krijgt een conflictmelding en behoudt de bewerkingen in het scherm. Andere editors krijgen een melding van nieuwe opslag. Uitloggen sluit alleen de eigen streams. Filters, lokaal negeren en handmatig markeren zijn per browser, geen gedeelde beoordelingen. De server blijft standaard lokaal gebonden. Publieke HTTPS-toegang via Coolify vereist expliciete runtimeconfiguratie volgens [DEPLOYMENT.md](DEPLOYMENT.md); alle gebruikers blijven dezelfde bot delen.
+Alle toegelaten Discord-gebruikers delen één LIVE-verbinding, bot, commandoconfiguratie, filterinstellingen en moderatielog. Er zijn maximaal tien gelijktijdige chatstreams (tabs). Verbinden/Stop heeft effect voor iedereen. Bij gelijktijdig opslaan wint één revisie; een verouderde versie krijgt een conflictmelding en behoudt de bewerkingen in het scherm. Andere editors krijgen een melding van nieuwe opslag. Uitloggen sluit alleen de eigen streams. Lokaal negeren en handmatig markeren blijven per browser; filters markeren berichten ter beoordeling en voeren geen automatische moderatie uit. De server blijft standaard lokaal gebonden. Publieke HTTPS-toegang via Coolify vereist expliciete runtimeconfiguratie volgens [DEPLOYMENT.md](DEPLOYMENT.md); alle gebruikers blijven dezelfde bot delen.
+
+Onder **Weergave** staan persoonlijke voorkeuren voor kleuren, compactheid, afwisselende rijkleur en hoog contrast. Rollen en beoordelingen hebben ook tekstlabels. Het optionele paneel **LIVE-activiteit** toont binnenkomers, cadeaus, volgers en gedeelde LIVE's, met maximaal honderd gebeurtenissen. De cooldownstrook op Livechat toont de gedeelde wachttijd, actieve commandcooldowns en resterende berichtbudgetten. Een individuele kijker kan daarnaast nog een eigen cooldown hebben.
+
+De knop boven het linkermenu klapt de navigatie in of uit. Op brede schermen kun je de scheidingslijn tussen Livechat en Verdachte berichten verslepen; met focus op de lijn werken ook de pijltoetsen. Enter of dubbelklikken herstelt de standaardverdeling. Menu en paneelverdeling blijven per browser bewaard; op smalle schermen staan de panelen onder elkaar.
+
+Beheerders kunnen bij Discord-toegang een korte herkenningsnotitie toevoegen en onder **Instellingen → Dashboardicoon** een gedeeld icoon uploaden. Dat verschijnt naast het kanaal en als favicon; zonder upload valt het dashboard terug op een letter. PNG, JPG en WebP worden in de browser naar een begrensde PNG omgezet en op de server gevalideerd. Alleen dit icoon is openbaar beschikbaar; bestaande botcookies worden nooit door dashboard-API's teruggestuurd.
 
 ## Bot en commands
 
@@ -59,9 +67,11 @@ Onder **Instellingen → Botcookies herstellen** kunnen Discord-beheerders de vi
 
 De signer gebruikt één geïsoleerde, herbruikbare Node-worker met verse TikTok-context per aanvraag. Geen extra dependencies of netwerk in die worker. Hij stopt bij fouten, na100 aanvragen, boven128MiB RSS of na15 minuten inactiviteit; een volgende aanvraag mag opnieuw starten. Geen automatische herhaling van een mislukte aanvraag. Zie DEPLOYMENT.md voor de private alpha en nog onbewezen server-IP/duurproeven.
 
-Secrets blijven in `.env` of read-only gemounte secretbestanden. Ondersteunde `_FILE`-varianten en de private containeropzet staan in [DEPLOYMENT.md](DEPLOYMENT.md). Alleen `data/` vereist persistente opslag: commands, Discord-toegang en moderatielog. `.dev_docs/` staat uitsluitend lokaal in `.git/info/exclude`.
+Secrets blijven in `.env` of read-only gemounte secretbestanden. Ondersteunde `_FILE`-varianten en de private containeropzet staan in [DEPLOYMENT.md](DEPLOYMENT.md). Alleen `data/` vereist persistente opslag: commands, Discord-toegang, moderatielog, gedeelde filters, dashboardicoon en de directe botsessie. Houd servertoegang en back-ups privé; beheerders daarvan kunnen de opgeslagen credentials lezen.
 
 ## Controles en GitHub
+
+De broncode valt onder de [GNU GPL versie 3](LICENSE) (`GPL-3.0-only`).
 
 `npm run check` controleert types, bronlengte en verboden Git-bestanden. `npm test` gebruikt nepverzoeken en voert geen echte TikTok-acties uit. `npm run test:coverage` meet geladen server/shared-modules met Node zelf; minimum94% regels/90% branches/93% functies (frontend en nooit geïmporteerde modules vallen buiten deze meting). `npm run audit:prod` controleert runtime-dependencies op bekende kwetsbaarheden. GitHub Actions draait check/coverage/audit op Linux en Windows en bouwt/test een private Docker-container met fictieve credentials, inclusief beveiliging en databehoud. De workflows publiceren of deployen niets en hebben geen TikTok/Discord-secrets nodig.
 

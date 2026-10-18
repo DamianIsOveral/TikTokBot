@@ -14,10 +14,16 @@ import { createMessageActions } from './message-actions.js';
 import { initializePreferences } from './preferences.js';
 import { confirmLeave } from './unsaved.js';
 import { notifyCommandRevision, checkCommandRevision } from './commands.js';
+import { initializeCommandStatus } from './command-status.js';
+import { applyGlobalFilters, initializeGlobalFilters } from './filters.js';
+import { initializeLiveActivity, receiveLiveActivity, replaceLiveActivity, resetLiveActivity } from './live-activity.js';
+import { initializeBranding, refreshBranding } from './branding.js';
+import { initializeLayout } from './layout.js';
 
 function updateMode(live: boolean): void {
   messageActions.close();
   state.liveMode = live;
+  if (!live) resetLiveActivity();
   element<HTMLButtonElement>('#add').disabled = live;
   element<HTMLButtonElement>('#demo').disabled = !live;
   element('.demo span').textContent = live
@@ -43,7 +49,11 @@ function updateConnection(data: StatusEvent | Snapshot): void {
 }
 
 function onEvent(data: ClientEvent): void {
-  if (data.type === 'commands-changed') {
+  if (data.type === 'filters-changed') {
+    applyGlobalFilters(data.value, render);
+  } else if (data.type === 'activity') {
+    if (state.liveMode && state.serverConnected && state.phase === 'connected') receiveLiveActivity(data);
+  } else if (data.type === 'commands-changed') {
     notifyCommandRevision(data.revision);
   } else if (data.type === 'capabilities') {
     showChatAccess(data.value);
@@ -52,6 +62,7 @@ function onEvent(data: ClientEvent): void {
   } else if (data.type === 'bot') {
     showBotStatus(data.text);
   } else if (data.type === 'transport') {
+    resetLiveActivity();
     state.serverConnected = false;
     element('#live-status').textContent = data.text;
     element<HTMLButtonElement>('#connect').disabled = element<HTMLButtonElement>('#stop').disabled = true;
@@ -59,6 +70,8 @@ function onEvent(data: ClientEvent): void {
     updateMode(state.liveMode);
     render();
   } else if (data.type === 'snapshot') {
+    if (data.filters) applyGlobalFilters(data.filters, render);
+    replaceLiveActivity(data.mode === 'live' && data.phase === 'connected' ? data.activity : []);
     checkCommandRevision();
     state.serverConnected = true;
     if (data.capabilities) showChatAccess(data.capabilities);
@@ -72,6 +85,7 @@ function onEvent(data: ClientEvent): void {
     render();
     if (state.phase === 'connected') void refreshModerationAccess().then(render);
   } else if (data.type === 'status') {
+    if (data.phase !== 'connected') resetLiveActivity();
     state.moderation = undefined;
     updateConnection(data);
     if (data.phase === 'connecting') { showBotStatus(''); resetMessages(); updateMode(true); render(); }
@@ -96,6 +110,7 @@ function showBotStatus(text: string): void {
 const connection = createConnection(onEvent);
 const messageActions = createMessageActions(render);
 initializePreferences();
+initializeLayout();
 element('#demo').onclick = () => {
   if (state.liveMode) { updateMode(false); loadDemo(); render(); }
   else { resetMessages(); updateMode(true); connection.subscribe(); render(); }
@@ -155,6 +170,10 @@ document.querySelectorAll<HTMLButtonElement>('[data-page]').forEach(button => {
 });
 
 if (await requireUser()) {
+  initializeCommandStatus();
+  initializeLiveActivity();
+  initializeBranding();
+  void initializeGlobalFilters(render).catch(() => toast('Gedeelde filters konden niet worden geladen. Controleer de dashboardverbinding.'));
   updateMode(true);
   render();
   connection.subscribe();
@@ -162,6 +181,7 @@ if (await requireUser()) {
   state.username = config.username;
   state.botUsername = config.botUsername;
   element('#channel').textContent = `@${config.username}`;
+  refreshBranding();
   if (state.page === 'Instellingen') renderPage(render);
   }).catch(() => {});
 }

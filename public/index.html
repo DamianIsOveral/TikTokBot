@@ -7,9 +7,18 @@
 <title>Faynominaal LIVE Dashboard</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="workspace.css">
+<link rel="stylesheet" href="moderation.css">
+<link rel="stylesheet" href="access.css">
+<link rel="stylesheet" href="command-status.css">
+<link rel="stylesheet" href="filters.css">
+<link rel="stylesheet" href="activity.css">
+<link rel="stylesheet" href="branding.css">
+<link rel="stylesheet" href="layout.css">
+<link id="dashboard-favicon" rel="icon" href="/branding/icon">
 </head>
 <body>
-<aside>
+<aside id="sidebar">
+<button id="sidebar-toggle" type="button" aria-controls="sidebar-navigation" aria-expanded="true" aria-label="Menu inklappen" title="Menu inklappen">«</button>
 <div class="brand">
 <b class="logo">♪</b>
 <div>
@@ -17,34 +26,34 @@
 <small>LIVE Dashboard</small>
 </div>
 </div>
-<nav>
-<button data-page="Overzicht"><span class="nav-icon" aria-hidden="true">⌂</span><span>Overzicht</span>
+<nav id="sidebar-navigation" aria-label="Hoofdnavigatie">
+<button data-page="Overzicht" aria-label="Overzicht" title="Overzicht"><span class="nav-icon" aria-hidden="true">⌂</span><span>Overzicht</span>
 </button>
-<button data-page="Livechat" class="active"><span class="nav-icon" aria-hidden="true">☏</span><span>Livechat</span>
+<button data-page="Livechat" aria-label="Livechat" title="Livechat" class="active"><span class="nav-icon" aria-hidden="true">☏</span><span>Livechat</span>
 </button>
-<button data-page="Moderatie"><span class="nav-icon" aria-hidden="true">◇</span><span>Moderatie</span>
+<button data-page="Moderatie" aria-label="Moderatie" title="Moderatie"><span class="nav-icon" aria-hidden="true">◇</span><span>Moderatie</span>
 </button>
-<button data-page="Filters"><span class="nav-icon" aria-hidden="true">▽</span><span>Filters</span>
+<button data-page="Filters" aria-label="Filters" title="Filters"><span class="nav-icon" aria-hidden="true">▽</span><span>Filters</span>
 </button>
-<button data-page="Commands"><span class="nav-icon" aria-hidden="true">⌘</span><span>Commands</span>
+<button data-page="Commands" aria-label="Commands" title="Commands"><span class="nav-icon" aria-hidden="true">⌘</span><span>Commands</span>
 </button>
-<button data-page="Toegang" class="hidden"><span class="nav-icon" aria-hidden="true">♙</span><span>Toegang</span>
+<button data-page="Toegang" aria-label="Toegang" title="Toegang" class="hidden"><span class="nav-icon" aria-hidden="true">♙</span><span>Toegang</span>
 </button>
-<button data-page="Instellingen"><span class="nav-icon" aria-hidden="true">⚙</span><span>Instellingen</span>
+<button data-page="Instellingen" aria-label="Instellingen" title="Instellingen"><span class="nav-icon" aria-hidden="true">⚙</span><span>Instellingen</span>
 </button>
 </nav>
 <div class="sidefoot">
 <small id="signed-in-user"></small><br>
 <button id="logout">Uitloggen</button><br>
 <i>
-</i> Lokale webapp<br>
+</i> Webdashboard<br>
 <small>Versie 0.3 · Web</small>
 </div>
 </aside>
 <main>
 <header>
 <div class="account">
-<div class="avatar hero">F</div>
+<div class="avatar hero" id="channel-avatar">F</div>
 <div>
 <h1 id="channel">@faynominaal</h1>
 <div class="muted">
@@ -52,7 +61,7 @@
 </div>
 </div>
 </div>
-<div class="metrics">
+<div class="header-tools"><div class="metrics">
 <article>♧ <div>
 <small>Kijkers</small>
 <strong>—</strong>
@@ -69,18 +78,30 @@
 </div>
 </article>
 </div>
+<details class="display-preferences"><summary>Weergave</summary><div class="display-options">
+<label><input id="username-colors" type="checkbox"> Gebruikerskleuren</label>
+<label><input id="compact-mode" type="checkbox"> Compacte weergave</label>
+<label><input id="striped-rows" type="checkbox"> Afwisselende rijkleur</label>
+<label><input id="high-contrast" type="checkbox"> Hoog contrast</label>
+<label><input id="activity-toggle" type="checkbox"> LIVE-activiteit tonen</label>
+<small>Alleen jouw weergave. Filters worden met de bot gedeeld.</small>
+</div></details></div>
 </header>
-<div class="display-preferences"><label><input id="username-colors" type="checkbox"> Gebruikerskleuren</label><label><input id="compact-mode" type="checkbox"> Compacte weergave</label></div>
 <div class="demo"><b id="connection-badge" role="status">NIET VERBONDEN</b> <span>Verbind met TikTok LIVE om berichten te ontvangen.</span>
-<button id="demo">Lokale test</button>
+<div class="connection-actions">
 <button id="connect">Verbinden</button>
 <button id="stop" disabled>Stop</button>
+<details class="test-options"><summary>Testopties</summary><div class="test-menu">
+<small>Alleen lokale voorbeeldinhoud.</small>
+<button id="demo">Lokale test</button>
 <button id="add" disabled>＋ Testbericht</button>
+</div></details>
+</div>
 </div>
 <p id="bot-status" class="bot-status hidden" role="status"></p>
 <p id="chat-status" class="bot-status" role="status">Botverbinding wordt gecontroleerd.</p>
 <section id="chatpage" class="columns">
-<article class="panel chatpanel">
+<article class="panel chatpanel" id="chat-panel">
 <div class="panelhead">
 <h2>Livechat</h2>
 <select id="sort" aria-label="Sorteervolgorde">
@@ -89,11 +110,13 @@
 </select>
 </div>
 <input id="search" placeholder="⌕  Zoek gebruiker of bericht…" aria-label="Zoek gebruiker of bericht">
+<div id="command-status" class="command-status" role="group" aria-label="Botcommands en cooldowns"></div>
 <div id="chat" class="chat">
 </div>
 <div class="panelbottom">Alleen markeren · Moderator beslist</div>
 </article>
-<article class="panel reviewpanel">
+<div id="chat-resize" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Breedte van Livechat aanpassen" aria-controls="chat-panel review-panel" aria-valuemin="20" aria-valuemax="80" aria-valuenow="53" title="Sleep om de breedte aan te passen. Pijltjestoetsen: aanpassen; Home/End: minimum/maximum; Enter of dubbelklik: herstellen."></div>
+<article class="panel reviewpanel" id="review-panel">
 <div class="panelhead">
 <div>
 <h2>Verdachte berichten <b id="badge">0</b>
@@ -113,6 +136,10 @@
 <strong>♧ Recente moderatieactiviteit</strong>
 <div id="activity">Nog geen lokale acties.</div>
 </footer>
+<section id="activity-panel" class="live-activity-panel" aria-labelledby="activity-title" hidden>
+<div class="live-activity-heading"><h3 id="activity-title">LIVE-activiteit</h3><button id="activity-hide" type="button">Verbergen</button></div>
+<ol id="activity-feed" aria-label="Recente LIVE-activiteit"></ol>
+</section>
 </article>
 </section>
 <section id="otherpage" class="panel hidden">

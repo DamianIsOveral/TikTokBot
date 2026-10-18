@@ -4,11 +4,11 @@ import { element, escapeHTML } from './dom.js';
 export function mountAccess(): void {
   const root = document.createElement('div');
   root.className = 'access-editor';
-  root.innerHTML = `<h2>Dashboardtoegang</h2><p>Voeg Discord-IDs toe. Gebruikers bedienen de gedeelde bot; beheerders mogen ook toegang beheren.</p>
+  root.innerHTML = `<h2>Dashboardtoegang</h2><p>Voeg Discord-IDs toe en noteer bij wie ze horen. Gebruikers bedienen de gedeelde bot; beheerders mogen ook toegang beheren.</p>
     <p data-status role="status">Toegangslijst laden…</p>
-    <form data-form><div data-users></div><div class="command-toolbar">
+    <form data-form><div data-users></div><div class="access-toolbar">
     <button type="button" data-add disabled>＋ Discord-ID toevoegen</button>
-    <button type="submit" data-save disabled>Toegang opslaan</button>
+    <button type="submit" data-save class="button-primary" disabled>Toegang opslaan</button>
     <button type="button" data-reload>Opgeslagen versie laden</button></div></form>
     <p>De vaste beheerders uit de serverinstellingen blijven altijd beheerder. Verwijderen trekt toegang en bestaande sessies direct in.</p>`;
   element('#otherpage').replaceChildren(root);
@@ -35,10 +35,11 @@ export function mountAccess(): void {
     const number = ++sequence;
     row.className = 'access-row';
     row.innerHTML = `<label for="discord-id-${number}">Discord-ID<input id="discord-id-${number}" data-id required pattern="[0-9]{17,20}" inputmode="numeric" maxlength="20" value="${escapeHTML(user.id)}" ${fixed ? 'data-protected' : ''}></label>
+      <label for="discord-comment-${number}">Opmerking<input id="discord-comment-${number}" data-comment maxlength="120" placeholder="Naam of herkenbare omschrijving" value="${escapeHTML(user.comment ?? '')}"></label>
       <label for="discord-role-${number}">Rol<select id="discord-role-${number}" data-role ${fixed ? 'data-protected' : ''}>
       <option value="member" ${user.role === 'member' ? 'selected' : ''}>Gebruiker</option>
       <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Beheerder</option></select></label>
-      <button type="button" data-remove ${fixed ? 'data-protected' : ''}>${fixed ? 'Vaste beheerder' : 'Verwijderen'}</button>`;
+      <div class="access-row-action">${fixed ? '<span class="access-fixed">Vaste beheerder</span>' : '<button type="button" data-remove>Verwijderen</button>'}</div>`;
     find('[data-users]').append(row);
     lock(busy);
   }
@@ -76,7 +77,8 @@ export function mountAccess(): void {
     if (busy) return;
     const users = [...root.querySelectorAll<HTMLElement>('.access-row')].map(row => ({
       id: row.querySelector<HTMLInputElement>('[data-id]')!.value.trim(),
-      role: row.querySelector<HTMLSelectElement>('[data-role]')!.value
+      role: row.querySelector<HTMLSelectElement>('[data-role]')!.value,
+      comment: row.querySelector<HTMLInputElement>('[data-comment]')!.value
     }));
     lock(true);
     try {

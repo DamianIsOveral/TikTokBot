@@ -1,5 +1,6 @@
 import { commandPolicy as policy, defaultCommandLimits } from '../shared/command-policy.ts';
 import type { CommandLimits } from '../shared/commands.ts';
+import type { CommandLimiterStatus } from '../shared/command-status.ts';
 
 export function createCommandLimiter(now = Date.now, getLimits: () => CommandLimits = () => defaultCommandLimits) {
   let busy = false;
@@ -8,7 +9,7 @@ export function createCommandLimiter(now = Date.now, getLimits: () => CommandLim
   const history: number[] = [];
   const triggers = new Map<string, number>();
   const users = new Map<string, number>();
-  const prune = () => { while (history.length && history[0] <= now() - 3600_000) history.shift(); };
+  const prune = (at = now()) => { while (history.length && history[0] <= at - 3600_000) history.shift(); };
   const withinBudget = (count: number) => {
     prune();
     return history.length + count <= getLimits().maxMessagesPerHour
@@ -16,6 +17,26 @@ export function createCommandLimiter(now = Date.now, getLimits: () => CommandLim
   };
   const waitMs = () => Math.max(0,lastSend+getLimits().intervalSeconds*1000-now());
   return {
+    snapshot(): CommandLimiterStatus {
+      const at = now();
+      const limits = getLimits();
+      prune(at);
+      const budget = (windowMs: number, limit: number) => {
+        const entries = history.filter(sent => sent > at - windowMs);
+        return { remaining: Math.max(0, limit - entries.length), limit,
+          nextReadyAt: entries.length < limit ? at : entries[entries.length - limit] + windowMs };
+      };
+      const minute = budget(60_000, policy.messagesPerMinute);
+      const hour = budget(3600_000, limits.maxMessagesPerHour);
+      const intervalReadyAt = Math.max(at, lastSend + limits.intervalSeconds * 1000);
+      const batchReadyAt = Math.max(at, nextBatch);
+      return { serverNow: at, busy,
+        nextReadyAt: busy ? null : Math.max(intervalReadyAt, batchReadyAt, minute.nextReadyAt, hour.nextReadyAt),
+        intervalReadyAt, batchReadyAt, minute, hour,
+        triggerCooldowns: [...triggers].filter(([, until]) => until > at)
+          .map(([trigger, nextReadyAt]) => ({ trigger, nextReadyAt })).sort((a, b) => a.trigger.localeCompare(b.trigger)),
+        userCooldownSeconds: policy.userCooldownMs / 1000 };
+    },
     reserve(count: number, trigger: string, user: string, cooldownSeconds: number) {
       for (const [id, until] of users) if (until <= now()) users.delete(id);
       for (const [id, until] of triggers) if (until <= now()) triggers.delete(id);

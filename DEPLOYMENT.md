@@ -86,7 +86,7 @@ openbare signerbestanden. Secrets komen pas bij starten binnen; niet via build a
 Eén herbruikbare signerworker start pas bij ondertekening, heeft64MiB heap en geen netwerktoegang.
 Na100 aanvragen, RSS boven128MiB, een fout of15 minuten inactiviteit sluit hij; de volgende aanvraag
 mag een nieuw proces starten. Een mislukte aanvraag wordt nooit automatisch opnieuw verstuurd.
-`data/commands.json`, `data/access.json`, `data/moderation-audit.json` en in direct-modus `data/tiktok-session.json` staan in het persistente volume. Het sessiebestand bevat logincredentials: houd het volume en eventuele back-ups privé. Linuxbestandsrechten zijn0600.
+`data/commands.json`, `data/access.json`, `data/moderation-audit.json`, `data/filters.json`, `data/branding.json` en in direct-modus `data/tiktok-session.json` staan in het persistente volume. Het sessiebestand bevat logincredentials: houd het volume en eventuele back-ups privé. Linuxbestandsrechten zijn0600. Het dashboardicoon wordt via een afzonderlijke openbare afbeeldingsroute aangeboden; de bestanden in het volume zijn niet rechtstreeks via HTTP beschikbaar.
 Containerhealth controleert alleen de webserver, niet of TikTok LIVE is of tokens geldig zijn.
 
 Voor gemounte secretbestanden worden deze varianten ondersteund:
