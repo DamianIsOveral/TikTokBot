@@ -482,13 +482,16 @@ button:disabled {
   cursor:default;
   opacity:.5
 }
-.commands-editor{max-width:1000px}
-.command-card{border:1px solid var(--line);border-radius:10px;padding:18px;margin:20px 0}
+.commands-editor{width:100%;min-width:0;max-width:1000px}
+.commands-editor input:not([type=checkbox]),.commands-editor select,.commands-editor textarea{width:100%;min-width:0;max-width:100%}
+.command-card{min-width:0;max-width:100%;container-type:inline-size;border:1px solid var(--line);border-radius:10px;padding:18px;margin:20px 0}
 .command-card legend{padding:0 8px;color:var(--cyan)}
-.command-fields{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
-.command-fields label{flex:1;min-width:160px}
-.command-fields input:not([type=checkbox]){display:block;margin-top:8px}
-.command-fields .command-enabled{display:flex!important;gap:8px;align-items:center}
+.command-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:end}
+#otherpage .command-fields label{min-width:0;margin:0}
+.command-fields input:not([type=checkbox]),.command-fields select{display:block;margin-top:8px}
+.command-fields .command-enabled{display:flex!important;gap:8px;align-items:center;min-height:40px}
+@container(max-width:420px){.command-fields{grid-template-columns:minmax(0,1fr)}}
+@container(min-width:760px){.command-card:not(.command-limits) .command-fields{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .command-toolbar{display:flex;gap:12px;flex-wrap:wrap;margin:20px 0}
 .command-preview{margin-top:30px;border-top:1px solid var(--line);padding-top:12px}
 .command-preview form{display:flex;gap:14px;align-items:end;flex-wrap:wrap}
