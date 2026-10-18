@@ -11,6 +11,9 @@ import { requireUser } from './auth.js';
 import { showChatAccess } from './capabilities.js';
 import { refreshModerationAccess } from './moderation.js';
 import { createMessageActions } from './message-actions.js';
+import { initializePreferences } from './preferences.js';
+import { confirmLeave } from './unsaved.js';
+import { notifyCommandRevision, checkCommandRevision } from './commands.js';
 
 function updateMode(live: boolean): void {
   messageActions.close();
@@ -40,7 +43,9 @@ function updateConnection(data: StatusEvent | Snapshot): void {
 }
 
 function onEvent(data: ClientEvent): void {
-  if (data.type === 'capabilities') {
+  if (data.type === 'commands-changed') {
+    notifyCommandRevision(data.revision);
+  } else if (data.type === 'capabilities') {
     showChatAccess(data.value);
     render();
     if (state.phase === 'connected' && !state.moderation?.connected) void refreshModerationAccess().then(render);
@@ -54,6 +59,7 @@ function onEvent(data: ClientEvent): void {
     updateMode(state.liveMode);
     render();
   } else if (data.type === 'snapshot') {
+    checkCommandRevision();
     state.serverConnected = true;
     if (data.capabilities) showChatAccess(data.capabilities);
     showBotStatus(data.botStatus || '');
@@ -89,6 +95,7 @@ function showBotStatus(text: string): void {
 
 const connection = createConnection(onEvent);
 const messageActions = createMessageActions(render);
+initializePreferences();
 element('#demo').onclick = () => {
   if (state.liveMode) { updateMode(false); loadDemo(); render(); }
   else { resetMessages(); updateMode(true); connection.subscribe(); render(); }
@@ -136,12 +143,14 @@ element('#reviews').addEventListener('click', async event => {
   await messageActions.perform(action, message.id, duration);
 });
 document.querySelectorAll<HTMLButtonElement>('[data-page]').forEach(button => {
-  button.onclick = () => {
+  button.onclick = async () => {
+    if (state.page === button.dataset.page || !await confirmLeave()) return;
     state.page = button.dataset.page as Page;
     document.querySelectorAll('[data-page]').forEach(node => node.classList.toggle('active', node === button));
     element('#chatpage').classList.toggle('hidden', state.page !== 'Livechat');
     element('#otherpage').classList.toggle('hidden', state.page === 'Livechat');
     if (state.page !== 'Livechat') renderPage(render);
+    element('#otherpage').scrollTop = 0;
   };
 });
 

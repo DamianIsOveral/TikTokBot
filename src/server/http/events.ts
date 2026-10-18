@@ -13,6 +13,9 @@ export function createEventStream() {
   heartbeat.unref();
 
   return {
+    revalidate(): void {
+      for (const [client, authorized] of clients) if (!authorized()) { client.end(); clients.delete(client); }
+    },
     broadcast(event: ServerEvent): void {
       for (const [client, authorized] of clients) {
         if (!authorized()) { client.end(); clients.delete(client); }

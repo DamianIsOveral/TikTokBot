@@ -42,7 +42,7 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
   if (config.autoConnect) void live.connect();
   const rightsTimer = setInterval(() => { void capabilities.refresh(); }, 60_000);
   rightsTimer.unref();
-  const auth = createAuth(config.discord, access, events.disconnect, provider);
+  const auth = createAuth(config.discord, access, events.revalidate, provider);
   const routeModeration = createModerationRoutes(config, direct, live, session, audit);
   const server = http.createServer(async (req, res) => {
     if (!secureRequest(req, res, config.port)) return;
@@ -67,7 +67,8 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
     if (await routeAccess(req, res, access, user, () => { auth.revalidate(); events.disconnect(); })) return;
     if (await routeModeration(req, res, user, () => !!auth.user(req))) return;
     if (await routeCapabilities(req, res, capabilities)) return;
-    if (await routeCommands(req, res, commands, config.botEnabled, capabilities)) return;
+    if (await routeCommands(req, res, commands, config.botEnabled, capabilities,
+      revision => events.broadcast({type:'commands-changed',revision}))) return;
     if (!routeApi(req, res, { config, live, session, events, authorizeEvents: () => !!auth.user(req) })) await serveAsset(req, res);
   });
   server.requestTimeout = 10_000;

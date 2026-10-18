@@ -50,13 +50,13 @@ export function createModerationRoutes(config: AppConfig, direct: DirectChat | u
         return true;
       }
       if (!config.moderationEnabled) throw new CommandError('Moderatie staat uit op de server.', 403);
-      if (Date.now() < nextAction) throw new CommandError('Wacht drie seconden tussen moderatieacties.', 429);
       const body = await readJson(req) as Record<string, unknown>;
       if (!body || typeof body !== 'object' || !['mute', 'unmute', 'ban', 'unban'].includes(String(body.action))) throw new CommandError('Ongeldige moderatieactie.');
       const action = body.action as ModerationAction;
       if (Object.keys(body).some(key => !['action', 'messageId', 'targetId', 'page', 'cursor', 'duration'].includes(key))) throw new CommandError('Onbekend actieveld.');
       const duration = action === 'mute' && typeof body.duration === 'number' ? body.duration : action === 'mute' ? -1 : 30;
       if (action === 'mute' && ![0, 5, 30, 60, 300].includes(duration)) throw new CommandError('Ongeldige demptijd.');
+      if (Date.now() < nextAction) throw new CommandError('Wacht drie seconden tussen moderatieacties.', 429);
       nextAction = Date.now() + 3000;
       let target: ModerationTarget;
       let name: string;

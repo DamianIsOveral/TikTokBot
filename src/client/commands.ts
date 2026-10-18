@@ -2,22 +2,33 @@ import type { CommandDefinition, CommandSettings } from '../shared/commands.js';
 import { element, escapeHTML } from './dom.js';
 import type { ChatCapabilities } from '../shared/capabilities.js';
 import { commandPolicy, planResponses } from '../shared/command-policy.js';
+import { registerUnsaved, confirmLeave } from './unsaved.js';
 
 let currentAccess: ((value: ChatCapabilities) => void) | undefined;
+let currentRevision: ((revision: number) => void) | undefined;
+let checkRevision: (() => void) | undefined;
 export function updateCommandAccess(value: ChatCapabilities): void { currentAccess?.(value); }
+export function notifyCommandRevision(revision: number): void { currentRevision?.(revision); }
+export function checkCommandRevision(): void { checkRevision?.(); }
 
 export function mountCommands(): void {
   const root = document.createElement('div');
   root.className = 'commands-editor';
   root.innerHTML = `<h2>Commands</h2>
-    <p>Lange regels worden opgesplitst in maximaal 6 chatberichten van 200 tekens. Minimaal 3 seconden ertussen,
-    10 seconden pauze na een antwoord en maximaal 10 botberichten per minuut. Er ontstaat geen wachtrij.</p>
-    <p>Aliases gebruiken hetzelfde antwoord en dezelfde cooldown als het hoofdcommando. Maximaal 10 per commando.</p>
-    <p data-bot></p><p data-status role="status">Commands laden…</p>
-    <form data-form><div data-list></div>
-      <div class="command-toolbar"><button type="button" data-add disabled>＋ Commando toevoegen</button>
-      <button type="submit" data-save disabled>Commands opslaan</button>
-      <button type="button" data-reload>Opgeslagen versie laden</button></div>
+    <details class="command-help"><summary>Cooldowns, aliases en lange antwoorden</summary>
+    <p>De ingestelde cooldown geldt per commando voor alle kijkers; aliases delen deze cooldown.
+    Daarnaast: 30 seconden per kijker over alle commands, 10 seconden globale pauze na een antwoord,
+    minimaal 3 seconden tussen berichten en maximaal 10 botberichten per minuut.</p>
+    <p>Lange antwoorden: maximaal 6 chatberichten van 200 tekens. Geen wachtrij: opdrachten tijdens een pauze worden overgeslagen.
+    Maximaal 10 aliases per commando.</p></details>
+    <p data-bot></p>
+    <form data-form novalidate><div class="command-toolbar">
+      <div data-status class="command-feedback" role="status" tabindex="-1">Commands laden…</div>
+      <div class="command-buttons"><button type="submit" class="button-primary" data-save disabled>Commands opslaan</button>
+      <button type="button" data-add disabled>＋ Commando toevoegen</button>
+      <button type="button" data-reload>Opgeslagen versie laden</button>
+      <button type="button" data-jump hidden>Toon wijzigingen</button></div></div>
+      <p data-external class="command-external" role="status" hidden></p><div data-list></div>
     </form><section class="command-preview"><h3>Antwoordpreview</h3>
     <p>Bekijk het antwoord van je huidige bewerkingen. Deze preview verstuurt niets naar TikTok.</p>
     <form data-preview><label>Commando<input data-test placeholder="!discord" maxlength="31"></label>
@@ -34,11 +45,29 @@ export function mountCommands(): void {
   let sequence = 0;
   let allowed = false;
   let botEnabled = false;
-  const status = (message: string): void => { find('[data-status]').textContent = message; };
+  let dirty = false;
+  let baseline = '';
+  let remoteRevision = 0;
+  let saving = false;
+  const originals = new WeakMap<HTMLElement, string>();
+  const status = (message: string, tone: 'info' | 'warning' | 'success' | 'error' | 'saving' = 'info'): void => {
+    const node = find('[data-status]');
+    node.textContent = `${{info:'ℹ',warning:'●',success:'✓',error:'!',saving:'↻'}[tone]} ${message}`;
+    node.dataset.tone = tone;
+    node.setAttribute('role', tone === 'error' ? 'alert' : 'status');
+  };
+  const revealStatus = () => {
+    find('[data-status]').focus({preventScroll:true});
+    find('[data-status]').scrollIntoView({block:'nearest',behavior:'smooth'});
+  };
   function lockForm(locked: boolean): void {
     find('[data-form]').querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement>('input, textarea, button')
       .forEach(field => { field.disabled = locked || !loaded || !allowed; });
     find<HTMLButtonElement>('[data-reload]').disabled = locked;
+    find<HTMLButtonElement>('[data-save]').disabled = locked || !loaded || !allowed || !dirty;
+    find('[data-save]').textContent = saving ? 'Opslaan…' : 'Commands opslaan';
+    find<HTMLButtonElement>('[data-jump]').disabled = false;
+    find('[data-jump]').hidden = !dirty;
     find('[data-list]').classList.toggle('feature-disabled', !allowed);
   }
 
@@ -57,7 +86,7 @@ export function mountCommands(): void {
     row.className = 'command-card';
     row.innerHTML = `<legend>Commando</legend><div class="command-fields">
       <label for="trigger-${id}">Commando<input id="trigger-${id}" data-trigger required pattern="![a-zA-Z0-9_]{1,30}" maxlength="31" value="${escapeHTML(command.trigger)}" placeholder="!nieuw"></label>
-      <label for="cooldown-${id}">Cooldown (seconden)<input id="cooldown-${id}" data-cooldown type="number" min="5" max="3600" required value="${command.cooldownSeconds}"></label>
+      <label for="cooldown-${id}">Cooldown per commando (seconden)<input id="cooldown-${id}" data-cooldown type="number" min="5" max="3600" required value="${command.cooldownSeconds}"></label>
       <label class="command-enabled"><input data-enabled type="checkbox" ${command.enabled ? 'checked' : ''}> Ingeschakeld</label>
       </div><label for="aliases-${id}">Aliases (gescheiden door komma’s)
       <input id="aliases-${id}" data-aliases maxlength="400" value="${escapeHTML((command.aliases || []).join(', '))}" placeholder="!dc, !community"></label>
@@ -78,15 +107,43 @@ export function mountCommands(): void {
     row.querySelector<HTMLTextAreaElement>('[data-responses]')!.setCustomValidity(plan.error);
   }
 
-  function draft(): CommandDefinition[] {
-    return [...root.querySelectorAll<HTMLElement>('.command-card')].map(row => ({
+  function rowDraft(row: HTMLElement): CommandDefinition {
+    return {
       trigger: row.querySelector<HTMLInputElement>('[data-trigger]')!.value.trim().toLowerCase(),
       aliases: row.querySelector<HTMLInputElement>('[data-aliases]')!.value.split(',').map(text => text.trim().toLowerCase()).filter(Boolean),
       cooldownSeconds: Number(row.querySelector<HTMLInputElement>('[data-cooldown]')!.value),
       enabled: row.querySelector<HTMLInputElement>('[data-enabled]')!.checked,
       responses: row.querySelector<HTMLTextAreaElement>('[data-responses]')!.value.split(/\r?\n/).map(text => text.trim())
-    }));
+    };
   }
+  function draft(): CommandDefinition[] {
+    return [...root.querySelectorAll<HTMLElement>('.command-card')].map(rowDraft);
+  }
+  function track(announce = true): void {
+    dirty = loaded && JSON.stringify(draft()) !== baseline;
+    root.querySelectorAll<HTMLElement>('.command-card').forEach(row => {
+      row.classList.toggle('is-dirty', originals.get(row) !== JSON.stringify(rowDraft(row)));
+    });
+    document.querySelector('[data-page="Commands"]')?.setAttribute('data-unsaved', String(dirty));
+    if (announce) status(dirty ? 'Onopgeslagen wijzigingen. Sla op om ze actief te maken.' : 'Geen onopgeslagen wijzigingen.', dirty ? 'warning' : 'info');
+    lockForm(loading);
+  }
+  function focusChanges(): void {
+    const first = root.querySelector<HTMLElement>('.is-dirty') || find('[data-status]');
+    first.scrollIntoView({block:'center',behavior:'smooth'});
+    (first.querySelector<HTMLElement>('input,textarea') || first).focus({preventScroll:true});
+  }
+  function remoteChanged(next: number): void {
+    if (!root.isConnected || !Number.isSafeInteger(next)) return;
+    remoteRevision = Math.max(remoteRevision, next);
+    if (!loaded || next <= revision) return;
+    find('[data-external]').hidden = false;
+    find('[data-external]').textContent = dirty ? 'Er is ook een nieuwe versie opgeslagen. Je eigen wijzigingen blijven hier staan; opnieuw opslaan overschrijft die versie niet.'
+      : 'Er is een nieuwe commandoversie opgeslagen. Laad de opgeslagen versie om die te bekijken.';
+  }
+  currentRevision = remoteChanged;
+  checkRevision = () => { if (root.isConnected && loaded) void fetch('/api/commands').then(response => response.ok ? response.json() : undefined)
+    .then(result => { if (result) remoteChanged((result as CommandSettings).revision); }).catch(() => {}); };
 
   function show(settings: CommandSettings): void {
     loaded = true;
@@ -94,6 +151,11 @@ export function mountCommands(): void {
     revision = settings.revision;
     find('[data-list]').replaceChildren();
     for (const command of settings.commands) addRow(command);
+    baseline = JSON.stringify(draft());
+    root.querySelectorAll<HTMLElement>('.command-card').forEach(row => originals.set(row,JSON.stringify(rowDraft(row))));
+    track(false);
+    find('[data-external]').hidden = remoteRevision <= revision;
+    if (remoteRevision > revision) remoteChanged(remoteRevision);
     currentAccess?.(settings.capabilities);
     find('[data-result]').textContent = '';
   }
@@ -102,52 +164,97 @@ export function mountCommands(): void {
     if (loading) return;
     loading = true;
     lockForm(true);
+    status('Opgeslagen versie laden…','saving');
     try {
       const response = await fetch('/api/commands');
       if (!response.ok) throw new Error('Commands laden mislukt.');
       const settings = await response.json() as CommandSettings;
       if (!root.isConnected) return;
       show(settings);
-      status('Opgeslagen commands geladen.');
-    } catch (error) { status(error instanceof Error ? error.message : 'Laden mislukt.'); }
+      status('Opgeslagen commands geladen.','info');
+    } catch { status('Laden mislukt. Controleer de verbinding en probeer opnieuw.','error'); }
     finally { loading = false; lockForm(false); }
   }
 
-  find('[data-reload]').onclick = () => { void load(); };
+  find('[data-reload]').onclick = async () => { if (await confirmLeave()) await load(); };
+  find('[data-jump]').onclick = focusChanges;
   find('[data-add]').onclick = () => {
-    if (draft().length >= 50) { status('Maximaal 50 commando’s toegestaan.'); return; }
+    if (draft().length >= 50) { status('Maximaal 50 commando’s toegestaan.','error'); return; }
     addRow({ trigger: '', responses: [''], cooldownSeconds: 60, enabled: true });
-    status('Niet-opgeslagen wijzigingen.');
+    track();
     const fields = root.querySelectorAll<HTMLInputElement>('[data-trigger]');
     fields[fields.length - 1]?.focus();
   };
   find('[data-list]').addEventListener('input', event => {
     const row = event.target instanceof Element ? event.target.closest<HTMLElement>('.command-card') : null;
-    if (row) updatePlan(row);
-    status('Niet-opgeslagen wijzigingen.');
+    if (row) { row.querySelectorAll<HTMLInputElement>('input').forEach(input => input.setCustomValidity('')); updatePlan(row); }
+    track();
   });
   find('[data-list]').addEventListener('click', event => {
     const button = event.target instanceof Element ? event.target.closest('[data-remove]') : null;
-    if (button) { button.closest('fieldset')?.remove(); status('Niet-opgeslagen wijzigingen.'); }
+    if (button) { button.closest('fieldset')?.remove(); track(); }
   });
-  find<HTMLFormElement>('[data-form]').onsubmit = async event => {
-    event.preventDefault();
-    if (loading || !allowed) return;
+  function validateFields(): boolean {
+    const names = new Set<string>();
+    const rows = [...root.querySelectorAll<HTMLElement>('.command-card')];
+    rows.forEach(row => {
+      const trigger = row.querySelector<HTMLInputElement>('[data-trigger]')!;
+      const aliases = row.querySelector<HTMLInputElement>('[data-aliases]')!;
+      trigger.setCustomValidity(''); aliases.setCustomValidity('');
+      const command = rowDraft(row);
+      if (!/^![a-z0-9_]{1,30}$/.test(command.trigger)) trigger.setCustomValidity('Gebruik ! gevolgd door 1–30 letters, cijfers of underscores.');
+      if (names.has(command.trigger)) trigger.setCustomValidity(`Commando ${command.trigger} wordt al gebruikt.`);
+      names.add(command.trigger);
+      updatePlan(row);
+    });
+    rows.forEach(row => {
+      const aliases = row.querySelector<HTMLInputElement>('[data-aliases]')!;
+      const values = rowDraft(row).aliases || [];
+      if (values.length > 10) aliases.setCustomValidity('Maximaal 10 aliases per commando.');
+      for (const name of values) {
+        if (!/^![a-z0-9_]{1,30}$/.test(name)) aliases.setCustomValidity('Gebruik ! gevolgd door 1–30 letters, cijfers of underscores.');
+        if (names.has(name)) aliases.setCustomValidity(`Commando of alias ${name} wordt al gebruikt.`);
+        names.add(name);
+      }
+    });
+    const invalid = root.querySelector<HTMLInputElement | HTMLTextAreaElement>('[data-form] input:invalid,[data-form] textarea:invalid');
+    if (!invalid) return true;
+    status('Niet opgeslagen. Controleer het gemarkeerde veld.','error');
+    invalid.scrollIntoView({block:'center',behavior:'smooth'}); invalid.focus({preventScroll:true}); invalid.reportValidity();
+    return false;
+  }
+  async function save(): Promise<boolean> {
+    if (loading || !allowed) return false;
+    if (!dirty) return true;
+    if (!validateFields()) return false;
+    const commands = draft();
+    saving = true;
     loading = true;
     lockForm(true);
+    status('Commands opslaan… Wacht op de bevestiging.','saving');
+    let failure = 'Opslaan is niet bevestigd. Je wijzigingen blijven staan. Controleer de verbinding en laad de opgeslagen versie voordat je opnieuw probeert.';
     try {
       const response = await fetch('/api/commands', { method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'faynominaal' },
-        body: JSON.stringify({ revision, commands: draft() }) });
-      const result = await response.json() as CommandSettings & { error?: string };
+        signal:AbortSignal.timeout(10_000), body: JSON.stringify({ revision, commands }) });
+      const result = await response.json() as CommandSettings & { error?: string; currentRevision?: number };
       if (result.capabilities) currentAccess?.(result.capabilities);
-      if (!response.ok) throw new Error(result.error || 'Opslaan mislukt.');
-      if (!root.isConnected) return;
+      if (!response.ok) {
+        failure = response.status === 409 ? 'Niet opgeslagen: iemand anders heeft commands aangepast. Jouw wijzigingen zijn bewaard in dit scherm; laad eerst de nieuwe versie.' : result.error || 'Opslaan mislukt. Je wijzigingen blijven staan.';
+        if (result.currentRevision) remoteChanged(result.currentRevision);
+        throw new Error();
+      }
+      if (!root.isConnected) return false;
       show(result);
-      status('Commands opgeslagen. Wijzigingen zijn direct actief op de server.');
-    } catch (error) { status(error instanceof Error ? error.message : 'Opslaan mislukt.'); }
-    finally { loading = false; lockForm(false); }
+      status(`Opgeslagen om ${new Date().toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}. Commands zijn direct actief.`,'success');
+      revealStatus(); return true;
+    } catch { status(failure,'error'); revealStatus(); return false; }
+    finally { loading = saving = false; lockForm(false); }
+  }
+  find<HTMLFormElement>('[data-form]').onsubmit = event => {
+    event.preventDefault(); void save();
   };
+  registerUnsaved({connected:()=>root.isConnected,dirty:()=>dirty,busy:()=>loading,canSave:()=>allowed,focus:focusChanges,save});
   find<HTMLFormElement>('[data-preview]').onsubmit = event => {
     event.preventDefault();
     const trigger = find<HTMLInputElement>('[data-test]').value.trim().toLowerCase();

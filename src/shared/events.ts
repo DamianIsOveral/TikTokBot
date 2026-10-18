@@ -20,6 +20,7 @@ export interface IncomingChat {
 
 export interface BotEvent { type: 'bot'; text: string }
 export interface CapabilityEvent { type: 'capabilities'; value: ChatCapabilities }
+export interface CommandsChangedEvent { type: 'commands-changed'; revision: number }
 
 export interface ChatEvent extends IncomingChat {
   id: number;
@@ -37,6 +38,6 @@ export interface Snapshot {
 }
 
 export type LiveEvent = StatusEvent | IncomingChat | BotEvent | CapabilityEvent;
-export type ServerEvent = StatusEvent | ChatEvent | Snapshot | BotEvent | CapabilityEvent;
+export type ServerEvent = StatusEvent | ChatEvent | Snapshot | BotEvent | CapabilityEvent | CommandsChangedEvent;
 export type ClientEvent = ServerEvent | { type: 'transport'; text: string };
 export interface PublicConfig { username: string; botEnabled: boolean }

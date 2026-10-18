@@ -48,3 +48,16 @@ test('batchpauze, gebruikerscooldown en limiter blijven gelden over nieuwe comma
   time += 20_000;
   assert.ok(limiter.reserve(1, '!a', 'viewer', 5));
 });
+
+test('cooldown van één command blokkeert andere kijkers daarop, maar niet een ander command na de globale pauze',()=>{
+  let time=100_000;
+  const limiter=createCommandLimiter(()=>time);
+  const first=limiter.reserve(1,'!dono','viewer1',60)!;first.record();first.close();
+  time+=10_000;
+  assert.equal(limiter.reserve(1,'!dono','viewer2',60),undefined);
+  assert.equal(limiter.reserve(1,'!socials','viewer1',60),undefined);
+  const other=limiter.reserve(1,'!socials','viewer2',60);
+  assert.ok(other);other.record();other.close();
+  time+=20_000;
+  assert.ok(limiter.reserve(1,'!third','viewer1',60));
+});

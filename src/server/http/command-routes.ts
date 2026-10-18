@@ -6,7 +6,7 @@ import { readJson } from './json.ts';
 import type { ChatAccess } from '../chat-access.ts';
 
 export async function routeCommands(req: IncomingMessage, res: ServerResponse, store: CommandStore, botEnabled: boolean,
-  access: ChatAccess): Promise<boolean> {
+  access: ChatAccess, changed: (revision: number) => void = () => {}): Promise<boolean> {
   if (req.url !== '/api/commands') return false;
   res.setHeader('Content-Type', 'application/json');
   const capabilities = await access.refresh();
@@ -18,10 +18,12 @@ export async function routeCommands(req: IncomingMessage, res: ServerResponse, s
     }
     try {
       const saved = await store.save(await readJson(req));
+      changed(saved.revision);
       res.end(JSON.stringify({ ...saved, botEnabled, capabilities }));
     } catch (error) {
       const status = error instanceof CommandError ? error.status : 500;
-      res.writeHead(status).end(JSON.stringify({ error: error instanceof CommandError ? error.message : 'Opslaan mislukt.' }));
+      res.writeHead(status).end(JSON.stringify({ error: error instanceof CommandError ? error.message : 'Opslaan mislukt.',
+        ...(status === 409 ? { currentRevision:store.snapshot().revision } : {}) }));
     }
   }
   return true;

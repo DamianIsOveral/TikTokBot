@@ -13,6 +13,12 @@ Open http://127.0.0.1:3000. De Windows-snelkoppeling start de server indien nodi
 
 Discord vereist `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` en `DISCORD_ADMIN_IDS`. Registreer exact `http://127.0.0.1:3000/auth/discord/callback`. Alleen toegelaten Discord-IDs krijgen toegang; beheerders beheren die lijst onder **Toegang**. Alle gebruikers bedienen dezelfde bot. Na een serverherstart moet je opnieuw inloggen.
 
+**Compacte weergave** verkleint de tussenruimte en toont commandokaarten naast elkaar als er ruimte is. Deze voorkeur blijft in je browser bewaard. De commandeditor toont onopgeslagen wijzigingen in amber, bevestigde opslag in groen en fouten in rood. **Toon wijzigingen** springt naar de bewerking. Bij navigeren, herladen of uitloggen word je gewaarschuwd; je kunt opslaan, teruggaan of expliciet verwerpen.
+
+## Samen gebruiken
+
+Alle toegelaten Discord-gebruikers delen één LIVE-verbinding, bot, commandoconfiguratie en moderatielog. Er zijn maximaal tien gelijktijdige chatstreams (tabs). Verbinden/Stop heeft effect voor iedereen. Bij gelijktijdig opslaan wint één revisie; een verouderde versie krijgt een conflictmelding en behoudt de bewerkingen in het scherm. Andere editors krijgen een melding van nieuwe opslag. Uitloggen sluit alleen de eigen streams. Filters, lokaal negeren en handmatig markeren zijn per browser, geen gedeelde beoordelingen. Publieke toegang en afzonderlijke bots per gebruiker zijn nog niet ingericht; de server blijft lokaal gebonden.
+
 ## Bot en commands
 
 `TIKTOK_CHAT_TRANSPORT=direct` gebruikt de rechtstreeks geteste TikTok-route. Daarvoor zijn `TIKTOK_SESSION_ID`, `TIKTOK_TARGET_IDC`, `TIKTOK_MS_TOKEN` en `TIKTOK_VERIFY_FP` van dezelfde botsessie nodig. De Community-sleutel `EULER_API_KEY` blijft voor de SDK-chatontvangst gebruikt. `BOT_USERNAME` moet bij de sessie horen; `BOT_ENABLED=true` schakelt commandverwerking in.

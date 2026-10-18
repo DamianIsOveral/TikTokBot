@@ -1,5 +1,6 @@
 import type { DashboardUser, LoginStatus } from '../shared/auth.js';
 import { element } from './dom.js';
+import { confirmLeave } from './unsaved.js';
 
 export async function requireUser(): Promise<DashboardUser | undefined> {
   try {
@@ -10,6 +11,7 @@ export async function requireUser(): Promise<DashboardUser | undefined> {
     element('#signed-in-user').textContent = `${status.user.name} · ${status.user.role === 'admin' ? 'beheerder' : 'gebruiker'}`;
     element('[data-page="Toegang"]').classList.toggle('hidden', status.user.role !== 'admin');
     element('#logout').onclick = async () => {
+      if (!await confirmLeave()) return;
       const logout = await fetch('/auth/logout', { method: 'POST', headers: { 'X-Requested-With': 'faynominaal' } });
       if (logout.ok) location.replace('/login');
     };

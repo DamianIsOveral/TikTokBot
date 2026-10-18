@@ -7,6 +7,7 @@ import { createTestApp, signIn, authenticatedFetch, ADMIN } from './auth-fixture
 import { createAuditStore } from '../src/server/moderation-audit.ts';
 import { signingSdkVersion } from '../src/server/tiktok/signing-profile.ts';
 import type { AuditStore } from '../src/shared/moderation.ts';
+import http from 'node:http';
 
 async function fixture(t: { after(fn: () => unknown): void }, audit: AuditStore = createAuditStore()) {
   const config = readConfig({ TIKTOK_CHAT_TRANSPORT: 'direct', TIKTOK_MODERATION_ENABLED: 'true', EULER_API_KEY: 'PRIVATE_KEY',
@@ -41,10 +42,11 @@ async function fixture(t: { after(fn: () => unknown): void }, audit: AuditStore 
   config.port = (app.server.address() as AddressInfo).port;
   t.after(() => app.close());
   const base = `http://127.0.0.1:${config.port}`;
-  const request = authenticatedFetch(await signIn(config));
+  const cookie = await signIn(config);
+  const request = authenticatedFetch(cookie);
   const headers = { Origin: base, 'X-Requested-With': 'faynominaal', 'Content-Type': 'application/json' };
   await request(base + '/api/capabilities');
-  return { config, app, request, base, headers, audit, writes: () => writes,
+  return { config, app, request, cookie, base, headers, audit, writes: () => writes,
     async connect() {
       await request(base + '/api/connect', { method: 'POST', headers });
       await new Promise(resolve => setImmediate(resolve));
@@ -90,4 +92,28 @@ test('niet-schrijfbaar moderatielog verhindert de TikTokactie', async t => {
   assert.equal(result.status, 503);
   assert.equal(f.writes(), 0);
   assert.ok(!(await result.text()).includes('Disk full'));
+});
+
+test('gelijktijdige moderatie met vertraagde bodies kan de gedeelde actiepauze niet omzeilen', {timeout:5000},async t=>{
+  const f=await fixture(t);
+  const messageId=await f.connect();
+  const payload=JSON.stringify({action:'mute',messageId,duration:30});
+  let count=0;
+  let ready!:()=>void;
+  const both=new Promise<void>(resolve=>{ready=resolve;});
+  f.app.server.on('request',req=>{if(req.url==='/api/moderation'&&req.method==='POST'&&++count===2)ready();});
+  function slow(cookie:string) {
+    let finish!: (value:number)=>void;
+    const response=new Promise<number>(resolve=>{finish=resolve;});
+    const request=http.request(f.base+'/api/moderation',{method:'POST',headers:{...f.headers,Cookie:cookie,'Content-Length':Buffer.byteLength(payload)}},res=>{
+      res.resume();res.once('end',()=>finish(res.statusCode!));
+    });
+    request.flushHeaders();
+    return {request,response};
+  }
+  const a=slow(f.cookie),b=slow(await signIn(f.config));
+  await both;await new Promise<void>(resolve=>setImmediate(resolve));
+  a.request.end(payload);b.request.end(payload);
+  assert.deepEqual((await Promise.all([a.response,b.response])).sort(),[200,429]);
+  assert.equal(f.writes(),1);assert.equal(f.audit.list().length,1);
 });

@@ -494,7 +494,6 @@ button:disabled {
 .command-preview form{display:flex;gap:14px;align-items:end;flex-wrap:wrap}
 .command-preview input{display:block;margin-top:8px}
 .command-preview pre{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--cyan);line-height:1.8}
-.commands-editor [data-status]{color:var(--cyan)!important}
 .bot-status{margin:0;padding:12px 16px;border:1px solid var(--amber);border-radius:9px;color:var(--amber);background:#392d1c}
 .login-page{display:grid;place-items:center;height:auto;min-height:100vh;padding:24px}
 .login-panel{max-width:530px;gap:20px;padding:32px;flex:none}
