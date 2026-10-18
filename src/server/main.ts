@@ -13,7 +13,7 @@ const audit = await loadAuditStore(fileURLToPath(new URL('../../data/moderation-
 const sessionState=config.directCredentials?await loadSessionState(fileURLToPath(new URL('../../data/tiktok-session.json',import.meta.url)),config.directCredentials):undefined;
 const app = createApp(config, undefined, commands, access, undefined, undefined, sessionState?{sessionState}:undefined, audit);
 app.server.listen(config.port, config.host, () => {
-  console.log(`Dashboard: http://${config.host === '::1' ? '[::1]' : config.host}:${config.port}`);
+  console.log(`Dashboard: ${config.publicOrigin || `http://${config.host === '::1' ? '[::1]' : config.host}:${config.port}`}`);
 });
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
   const deadline = setTimeout(() => process.exit(1), 5000);

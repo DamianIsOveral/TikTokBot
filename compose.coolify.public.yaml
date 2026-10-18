@@ -1,0 +1,42 @@
+services:
+  dashboard:
+    build: .
+    init: true
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-}
+      TIKTOK_CHAT_TRANSPORT: direct
+      TIKTOK_USERNAME: ${TIKTOK_USERNAME:-faynominaal}
+      BOT_USERNAME: ${BOT_USERNAME:-faynominaalbot}
+      BOT_ENABLED: ${BOT_ENABLED:-false}
+      TIKTOK_MODERATION_ENABLED: ${TIKTOK_MODERATION_ENABLED:-false}
+      LIVE_AUTO_CONNECT: ${LIVE_AUTO_CONNECT:-false}
+      LIVE_AUTO_RECONNECT: ${LIVE_AUTO_RECONNECT:-true}
+      EULER_API_KEY: ${EULER_API_KEY:?}
+      TIKTOK_SESSION_ID: ${TIKTOK_SESSION_ID:?}
+      TIKTOK_TARGET_IDC: ${TIKTOK_TARGET_IDC:?}
+      TIKTOK_MS_TOKEN: ${TIKTOK_MS_TOKEN:?}
+      TIKTOK_VERIFY_FP: ${TIKTOK_VERIFY_FP:?}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:?}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:?}
+      DISCORD_ADMIN_IDS: ${DISCORD_ADMIN_IDS:?}
+    expose:
+      - '3000'
+    volumes:
+      - dashboard-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 64
+
+volumes:
+  dashboard-data:

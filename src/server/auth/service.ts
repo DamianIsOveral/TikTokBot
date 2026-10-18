@@ -11,6 +11,7 @@ import { allowMutation } from '../http/security.ts';
 export function createAuth(config: DiscordConfig, access: AccessStore, onLogout: () => void,
   provider: DiscordProvider = createDiscordProvider(config)) {
   const sessions = createSessionStore();
+  const secureCookies = new URL(config.redirectUri).protocol === 'https:';
   const ready = (): boolean => !!(config.clientId && config.clientSecret && config.adminIds.length);
   function user(req: IncomingMessage): DashboardUser | undefined {
     const identity = sessions.get(cookie(req, 'fay_session'));
@@ -30,7 +31,7 @@ export function createAuth(config: DiscordConfig, access: AccessStore, onLogout:
     if (url.pathname === '/auth/logout') {
       if (allowMutation(req, res)) {
         sessions.remove(cookie(req, 'fay_session'));
-        setCookie(res, 'fay_session', '', 0);
+        setCookie(res, 'fay_session', '', 0, secureCookies);
         onLogout();
         res.writeHead(204).end();
       }
@@ -48,7 +49,7 @@ export function createAuth(config: DiscordConfig, access: AccessStore, onLogout:
       if (user(req)) { redirect(res, '/'); return true; }
       try {
         const flow = sessions.begin();
-        setCookie(res, 'fay_oauth', flow.browser, 600);
+        setCookie(res, 'fay_oauth', flow.browser, 600, secureCookies);
         const target = new URL('https://discord.com/oauth2/authorize');
         target.search = new URLSearchParams({ client_id: config.clientId, redirect_uri: config.redirectUri,
           response_type: 'code', scope: 'identify', state: flow.state }).toString();
@@ -56,7 +57,7 @@ export function createAuth(config: DiscordConfig, access: AccessStore, onLogout:
       } catch { res.writeHead(429).end('Te veel inlogpogingen. Probeer later opnieuw.'); }
       return true;
     }
-    setCookie(res, 'fay_oauth', '', 0);
+    setCookie(res, 'fay_oauth', '', 0, secureCookies);
     const valid = sessions.consume(url.searchParams.get('state') || undefined, cookie(req, 'fay_oauth'));
     const code = url.searchParams.get('code');
     if (!valid || !code || code.length > 2048 || url.searchParams.has('error')) {
@@ -66,7 +67,7 @@ export function createAuth(config: DiscordConfig, access: AccessStore, onLogout:
       const identity = await provider.identify(code);
       if (!access.role(identity.id)) { redirect(res, '/login?error=denied'); return true; }
       sessions.remove(cookie(req, 'fay_session'));
-      setCookie(res, 'fay_session', sessions.create(identity), 8 * 60 * 60);
+      setCookie(res, 'fay_session', sessions.create(identity), 8 * 60 * 60, secureCookies);
       redirect(res, '/');
     } catch { redirect(res, '/login?error=discord'); }
     return true;
