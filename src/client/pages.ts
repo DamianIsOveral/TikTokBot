@@ -8,9 +8,14 @@ import { mountModeration } from './moderation.js';
 import {mountDiagnostics} from './diagnostics.js';
 import {mountCredentials} from './credentials.js';
 import {mountBranding} from './branding.js';
+import {canOpenPage} from './auth.js';
 
 export function renderPage(onChange: () => void): void {
   const node = element('#otherpage');
+  if (!canOpenPage(state.page)) {
+    node.innerHTML='<h2>Geen toegang</h2><p>Je dashboardrol geeft geen toegang tot deze pagina.</p>';
+    return;
+  }
   if (state.page === 'Toegang') {
     mountAccess();
   } else if (state.page === 'Commands') {

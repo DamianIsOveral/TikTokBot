@@ -2,7 +2,7 @@
 .access-editor>p{line-height:1.6;color:var(--muted)}
 .access-editor [data-status]{padding:11px 14px;border:1px solid var(--line);border-radius:8px;color:#b7d9ee;background:#152735}
 .access-editor [data-users]{display:grid;gap:12px}
-.access-row{display:grid;grid-template-columns:minmax(180px,1.15fr) minmax(180px,1.5fr) minmax(130px,.8fr) 140px;gap:12px;align-items:end;padding:14px;border:1px solid var(--line);border-radius:9px;background:#14212d}
+.access-row{display:grid;grid-template-columns:minmax(180px,1.15fr) minmax(180px,1.5fr) minmax(160px,.8fr) 140px;gap:12px;align-items:end;padding:14px;border:1px solid var(--line);border-radius:9px;background:#14212d}
 #otherpage .access-row label,body.compact #otherpage .access-row label{display:grid;gap:7px;min-width:0;margin:0;font-size:13px}
 .access-row input,.access-row select{box-sizing:border-box;width:100%;min-width:0;height:40px;margin:0;padding:9px 10px}
 .access-row [data-id]{font-variant-numeric:tabular-nums}

@@ -8,7 +8,7 @@ import {ADMIN,MEMBER,createTestApp,signIn,authenticatedFetch} from './auth-fixtu
 
 async function fixture(t: TestContext) {
   const config=readConfig({});
-  const access=createAccessStore([ADMIN],undefined,{revision:0,users:[{id:MEMBER,role:'member'}]});
+  const access=createAccessStore([ADMIN],undefined,{revision:0,users:[{id:MEMBER,role:'head-moderator'}]});
   const app=createTestApp(config,undefined,undefined,access);
   await new Promise<void>(resolve=>app.server.listen(0,'127.0.0.1',resolve));
   config.port=(app.server.address() as AddressInfo).port;
@@ -41,7 +41,7 @@ async function fixture(t: TestContext) {
   return {base,admin,member,post,stream};
 }
 
-test('twee Discordgebruikers slaan tegelijk op: één revisie wint, beiden krijgen de wijzigingsmelding', {timeout:5000},async t=>{
+test('beheerder en hoofd-moderator slaan tegelijk op: één revisie wint, beiden krijgen de wijzigingsmelding', {timeout:5000},async t=>{
   const f=await fixture(t);
   const a=await f.stream(f.admin),b=await f.stream(f.member);
   await a.next('snapshot'); await b.next('snapshot');

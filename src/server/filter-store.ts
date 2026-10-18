@@ -21,9 +21,13 @@ export function createFilterStore(path?: string, initial: FilterDocument = { rev
   let pending = Promise.resolve();
   return {
     snapshot(): FilterDocument { return structuredClone(document); },
-    save(value: unknown): Promise<FilterDocument> {
+    save(value: unknown, authorized: () => boolean = () => true): Promise<FilterDocument> {
       const candidate = validate(value);
+      const authorize = () => {
+        if (!authorized()) throw new FilterError('Je hebt geen toegang om filters aan te passen.', 403);
+      };
       const operation = pending.then(async () => {
+        authorize();
         if (candidate.revision !== document.revision) {
           throw new FilterError('Filters zijn gewijzigd. Laad de opgeslagen versie voordat je opnieuw opslaat.', 409);
         }
@@ -34,9 +38,11 @@ export function createFilterStore(path?: string, initial: FilterDocument = { rev
           try {
             await mkdir(dirname(path), { recursive: true, mode: 0o700 });
             await writeFile(temporary, JSON.stringify(next, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
+            authorize();
             await rename(temporary, path);
-          } catch {
+          } catch (error) {
             await unlink(temporary).catch(() => {});
+            if (error instanceof FilterError) throw error;
             throw new FilterError('Opslaan op de server is mislukt. De vorige filters blijven actief.', 500);
           }
         }

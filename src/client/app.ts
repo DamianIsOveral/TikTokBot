@@ -7,7 +7,7 @@ import type { Category } from './filters.js';
 import { createConnection } from './connection.js';
 import { render, scheduleRender } from './render.js';
 import { renderPage } from './pages.js';
-import { requireUser } from './auth.js';
+import { requireUser, canManageBot, canOpenPage } from './auth.js';
 import { showChatAccess } from './capabilities.js';
 import { refreshModerationAccess } from './moderation.js';
 import { createMessageActions } from './message-actions.js';
@@ -43,9 +43,9 @@ function updateConnection(data: StatusEvent | Snapshot): void {
   element('#live-status').textContent = data.text;
   state.phase = data.phase || state.phase;
   const connect = element<HTMLButtonElement>('#connect');
-  connect.disabled = state.phase === 'connecting';
+  connect.disabled = !canManageBot() || state.phase === 'connecting';
   connect.textContent = state.phase === 'connected' ? 'Livechat tonen' : 'Verbinden';
-  element<HTMLButtonElement>('#stop').disabled = !['connecting', 'connected', 'error', 'disconnected'].includes(state.phase);
+  element<HTMLButtonElement>('#stop').disabled = !canManageBot() || !['connecting', 'connected', 'error', 'disconnected'].includes(state.phase);
 }
 
 function onEvent(data: ClientEvent): void {
@@ -116,12 +116,14 @@ element('#demo').onclick = () => {
   else { resetMessages(); updateMode(true); connection.subscribe(); render(); }
 };
 element('#connect').onclick = async () => {
+  if (!canManageBot()) return;
   element<HTMLButtonElement>('#connect').disabled = true;
   try { await connection.connect(); }
   catch { toast('Verbinden mislukt. Controleer de serververbinding.'); }
-  finally { element<HTMLButtonElement>('#connect').disabled = state.phase === 'connecting'; }
+  finally { element<HTMLButtonElement>('#connect').disabled = !canManageBot() || state.phase === 'connecting'; }
 };
 element('#stop').onclick = async () => {
+  if (!canManageBot()) return;
   try { await connection.stop(); }
   catch { toast('Stoppen mislukt. Controleer de serververbinding.'); }
 };
@@ -159,7 +161,7 @@ element('#reviews').addEventListener('click', async event => {
 });
 document.querySelectorAll<HTMLButtonElement>('[data-page]').forEach(button => {
   button.onclick = async () => {
-    if (state.page === button.dataset.page || !await confirmLeave()) return;
+    if (!canOpenPage(button.dataset.page || '') || state.page === button.dataset.page || !await confirmLeave()) return;
     state.page = button.dataset.page as Page;
     document.querySelectorAll('[data-page]').forEach(node => node.classList.toggle('active', node === button));
     element('#chatpage').classList.toggle('hidden', state.page !== 'Livechat');
@@ -167,6 +169,17 @@ document.querySelectorAll<HTMLButtonElement>('[data-page]').forEach(button => {
     if (state.page !== 'Livechat') renderPage(render);
     element('#otherpage').scrollTop = 0;
   };
+});
+
+document.addEventListener('dashboard-permissions-changed', () => {
+  updateConnection({type:'status',text:element('#live-status').textContent||'',phase:state.phase});
+  if (canOpenPage(state.page)) return;
+  state.page='Livechat';
+  element('#chatpage').classList.remove('hidden');
+  element('#otherpage').classList.add('hidden');
+  element('#otherpage').replaceChildren();
+  document.querySelectorAll<HTMLElement>('[data-page]').forEach(button=>button.classList.toggle('active',button.dataset.page==='Livechat'));
+  toast('Je dashboardrol is gewijzigd. De beschikbare pagina’s zijn aangepast.');
 });
 
 if (await requireUser()) {

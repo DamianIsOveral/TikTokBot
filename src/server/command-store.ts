@@ -13,9 +13,13 @@ export function createCommandStore(path?: string, initial: CommandDocument = { r
     list(): readonly CommandDefinition[] { return document.commands; },
     limits() { return {...(document.limits||defaultCommandLimits)}; },
     snapshot(): CommandDocument { return structuredClone(document); },
-    save(value: unknown): Promise<CommandDocument> {
+    save(value: unknown, authorized: () => boolean = () => true): Promise<CommandDocument> {
       const candidate = validateCommands(value);
+      const authorize = () => {
+        if (!authorized()) throw new CommandError('Je hebt geen toegang om commands aan te passen.', 403);
+      };
       const operation = pending.then(async () => {
+        authorize();
         if (candidate.revision !== document.revision) {
           throw new CommandError('Commands zijn gewijzigd in een ander tabblad. Herlaad de opgeslagen versie en probeer opnieuw.', 409);
         }
@@ -25,9 +29,11 @@ export function createCommandStore(path?: string, initial: CommandDocument = { r
           try {
             await mkdir(dirname(path), { recursive: true, mode: 0o700 });
             await writeFile(temporary, JSON.stringify(next, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
+            authorize();
             await rename(temporary, path);
-          } catch {
+          } catch (error) {
             await unlink(temporary).catch(() => {});
+            if (error instanceof CommandError) throw error;
             throw new CommandError('Opslaan op de server is mislukt. De vorige configuratie blijft actief.', 500);
           }
         }

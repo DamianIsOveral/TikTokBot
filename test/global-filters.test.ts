@@ -96,9 +96,9 @@ test('filters worden atomair gedeeld opgeslagen, herladen en tegen gelijktijdig 
   await assert.rejects(exhausted.save(exhausted.snapshot()), (error: FilterError) => error.status === 500);
 });
 
-test('globale filters-API vereist login en CSRF, laat leden opslaan en deelt nieuwe versies', { timeout: 10_000 }, async t => {
+test('globale filters-API vereist login en CSRF, laat hoofd-moderators opslaan en deelt nieuwe versies', { timeout: 10_000 }, async t => {
   const config = readConfig({});
-  const access = createAccessStore([ADMIN], undefined, { revision: 0, users: [{ id: MEMBER, role: 'member' }] });
+  const access = createAccessStore([ADMIN], undefined, { revision: 0, users: [{ id: MEMBER, role: 'head-moderator' }] });
   const app = createTestApp(config, undefined, undefined, access);
   await new Promise<void>(resolve => app.server.listen(0, '127.0.0.1', resolve));
   config.port = (app.server.address() as AddressInfo).port;

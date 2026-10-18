@@ -15,7 +15,7 @@ function validate(value: unknown): AccessDocument {
     if (!item || typeof item !== 'object') throw new CommandError('Ongeldige gebruiker.');
     const row = item as Record<string, unknown>;
     if (typeof row.id !== 'string' || !validDiscordId(row.id) || ids.has(row.id)) throw new CommandError('Discord-IDs moeten uniek zijn en uit 17–20 cijfers bestaan.');
-    if (row.role !== 'admin' && row.role !== 'member') throw new CommandError('Ongeldige gebruikersrol.');
+    if (row.role !== 'admin' && row.role !== 'head-moderator' && row.role !== 'member') throw new CommandError('Ongeldige gebruikersrol.');
     if (row.comment !== undefined && (typeof row.comment !== 'string' || row.comment.length > 120 || /[\p{Cc}\p{Cf}\p{Cs}]/u.test(row.comment))) {
       throw new CommandError('Opmerkingen mogen maximaal 120 tekens bevatten, zonder besturings- of onzichtbare tekens.');
     }

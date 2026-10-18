@@ -11,7 +11,7 @@ npm start
 
 Open http://127.0.0.1:3000. De Windows-snelkoppeling start de server indien nodig en opent het dashboard. De server blijft werken als je het dashboard sluit. Standaard blijft de chat leeg tot je verbinding maakt; **Lokale test** toont uitsluitend voorbeeldchat.
 
-Discord vereist `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` en `DISCORD_ADMIN_IDS`. Registreer exact `http://127.0.0.1:3000/auth/discord/callback`. Alleen toegelaten Discord-IDs krijgen toegang; beheerders beheren die lijst onder **Toegang**. Alle gebruikers bedienen dezelfde bot. Na een serverherstart moet je opnieuw inloggen.
+Discord vereist `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` en `DISCORD_ADMIN_IDS`. Registreer exact `http://127.0.0.1:3000/auth/discord/callback`. Alleen toegelaten Discord-IDs krijgen toegang; beheerders beheren die lijst onder **Toegang**. Alle gebruikers delen dezelfde bot. Na een serverherstart moet je opnieuw inloggen.
 
 Onder **Toegang** kun je per Discord-ID een opmerking van maximaal 120 tekens bewaren, ook bij vaste beheerders. Deze opmerkingen wijzigen geen rechten.
 
@@ -20,6 +20,8 @@ Onder **Toegang** kun je per Discord-ID een opmerking van maximaal 120 tekens be
 **Gebruikerskleuren** is een aparte browservoorkeur: dezelfde @naam houdt dezelfde leesbare kleur. **MOD** markeert door TikTok bevestigde moderators; **BOT** blijft het eigen botaccount aanduiden. De navigatie gebruikt vaste icoon- en tekstkolommen.
 
 ## Samen gebruiken
+
+Dashboardrollen staan los van TikTok-rollen. **Moderator** kan de LIVE bekijken en modereren. **Hoofd-Moderator** kan daarnaast commands en gedeelde filters bewerken en de LIVE-verbinding starten/stoppen. **Beheerder** beheert ook de Discord-toegang, botcookies en het dashboardicoon. Bestaande gebruikers worden Moderator; hun opgeslagen rol `member` blijft compatibel en krijgt geen extra rechten. Alleen een beheerder kan iemand Hoofd-Moderator maken. De server controleert deze rechten bij ieder verzoek; een rolwijziging geldt ook voor bestaande sessies.
 
 Alle toegelaten Discord-gebruikers delen één LIVE-verbinding, bot, commandoconfiguratie, filterinstellingen en moderatielog. Er zijn maximaal tien gelijktijdige chatstreams (tabs). Verbinden/Stop heeft effect voor iedereen. Bij gelijktijdig opslaan wint één revisie; een verouderde versie krijgt een conflictmelding en behoudt de bewerkingen in het scherm. Andere editors krijgen een melding van nieuwe opslag. Uitloggen sluit alleen de eigen streams. Lokaal negeren en handmatig markeren blijven per browser; filters markeren berichten ter beoordeling en voeren geen automatische moderatie uit. De server blijft standaard lokaal gebonden. Publieke HTTPS-toegang via Coolify vereist expliciete runtimeconfiguratie volgens [DEPLOYMENT.md](DEPLOYMENT.md); alle gebruikers blijven dezelfde bot delen.
 

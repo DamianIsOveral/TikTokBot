@@ -1,4 +1,4 @@
-export type AccessRole = 'admin' | 'member';
+export type AccessRole = 'admin' | 'head-moderator' | 'member';
 export interface AccessEntry { id: string; role: AccessRole; comment?: string }
 export interface AccessDocument { revision: number; users: AccessEntry[] }
 export interface AccessSettings extends AccessDocument { protectedIds: string[] }
