@@ -6,6 +6,8 @@ import { createReadOnlyRequest } from '../src/server/tiktok/read-only-request.ts
 import { loadAuditStore } from '../src/server/moderation-audit.ts';
 import { auditedModeration } from '../src/server/moderation-action.ts';
 import { fileURLToPath } from 'node:url';
+import type {DirectRequestSigner} from '../src/server/tiktok/signing-profile.ts';
+let signer:DirectRequestSigner|undefined;
 
 const [mode, argument] = process.argv.slice(2);
 if (!['--inspect', '--test-once'].includes(mode) || !/^@?[\w.]{1,24}$/.test(argument || '') || process.argv.length !== 4) {
@@ -27,9 +29,10 @@ function report(error: unknown) {
     apiCode: error instanceof DirectTikTokError ? error.apiCode : undefined };
 }
 try {
+  signer=await createHeadlessSigner();
   const direct = createDirectClient({ sessionId: env.TIKTOK_SESSION_ID || '', targetIdc: env.TIKTOK_TARGET_IDC || '',
     botUsername: config.botUsername, msToken: env.TIKTOK_MS_TOKEN, verifyFp: env.TIKTOK_VERIFY_FP }, request,
-  { signRequest: await createHeadlessSigner() });
+  { signRequest: signer });
   await direct.verifyIdentity();
   const roomId = await direct.resolveRoomId(config.username);
   const target = await direct.moderation.resolveTarget(targetName);
@@ -87,4 +90,4 @@ try {
 } catch (error) {
   console.log(JSON.stringify({ completed: false, writeRequests: posts.length, ...report(error) }));
   process.exitCode = 1;
-}
+}finally{signer?.close?.();}

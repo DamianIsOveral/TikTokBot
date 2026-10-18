@@ -28,7 +28,7 @@ function validate(value:unknown):StoredSession {
   return state;
 }
 export async function loadSessionState(path:string,credentials:DirectCredentials,now=Date.now) {
-  const jar=createBotCookies(credentials,now);
+  let jar=createBotCookies(credentials,now);
   const seedHash=createHash('sha256').update(JSON.stringify({botUsername:credentials.botUsername.toLowerCase(),sessionId:credentials.sessionId,
     targetIdc:credentials.targetIdc,msToken:credentials.msToken||'',verifyFp:credentials.verifyFp||''})).digest('hex');
   let updatedAt:number|undefined;
@@ -73,6 +73,6 @@ export async function loadSessionState(path:string,credentials:DirectCredentials
     pending=operation.catch(()=>{});
     return operation;
   }
-  return {jar,flush,updatedAt:()=>updatedAt};
+  return {get jar(){return jar;},replaceJar:(next:typeof jar)=>{jar=next;},flush,updatedAt:()=>updatedAt};
 }
 export type SessionState=Awaited<ReturnType<typeof loadSessionState>>;

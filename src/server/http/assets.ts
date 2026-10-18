@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 const root = new URL('../../../', import.meta.url);
 const assets = new Map<string, [URL, string]>([
+  ['/shared/username-color.js', [new URL('dist/browser/shared/username-color.js', root), 'text/javascript; charset=utf-8']],
   ['/shared/command-templates.js', [new URL('dist/browser/shared/command-templates.js', root), 'text/javascript; charset=utf-8']],
   ['/shared/command-policy.js', [new URL('dist/browser/shared/command-policy.js', root), 'text/javascript; charset=utf-8']],
   ['/shared/moderation-policy.js', [new URL('dist/browser/shared/moderation-policy.js', root), 'text/javascript; charset=utf-8']],
@@ -11,7 +12,7 @@ const assets = new Map<string, [URL, string]>([
   ['/styles.css', [new URL('public/styles.css', root), 'text/css; charset=utf-8']],
   ['/workspace.css', [new URL('public/workspace.css', root), 'text/css; charset=utf-8']]
 ]);
-for (const name of ['app', 'connection', 'dom', 'filters', 'model', 'pages', 'render', 'demo', 'commands', 'auth', 'login', 'access', 'capabilities', 'moderation', 'message-actions', 'preferences', 'unsaved','diagnostics']) {
+for (const name of ['app', 'connection', 'dom', 'filters', 'model', 'pages', 'render', 'demo', 'commands', 'auth', 'login', 'access', 'capabilities', 'moderation', 'message-actions', 'preferences', 'unsaved','diagnostics','credentials']) {
   assets.set(`/assets/${name}.js`, [new URL(`dist/browser/client/${name}.js`, root), 'text/javascript; charset=utf-8']);
 }
 

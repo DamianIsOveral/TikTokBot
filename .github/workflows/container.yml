@@ -29,6 +29,17 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - run: node scripts/check-tracked.ts
+      - name: Validate private Coolify Compose with fictional credentials
+        run: docker compose -f compose.coolify.yaml config --quiet
+        env:
+          EULER_API_KEY: CI_FAKE
+          TIKTOK_SESSION_ID: CI_FAKE
+          TIKTOK_TARGET_IDC: test
+          TIKTOK_MS_TOKEN: CI_FAKE
+          TIKTOK_VERIFY_FP: verify_CI_FAKE
+          DISCORD_CLIENT_ID: '100000000000000001'
+          DISCORD_CLIENT_SECRET: CI_FAKE
+          DISCORD_ADMIN_IDS: '100000000000000001'
       - name: Build with public pinned signing assets
         run: docker build --tag faynominaal-ci:local .
       - name: Check private container and persistent storage

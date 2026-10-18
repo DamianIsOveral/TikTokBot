@@ -15,6 +15,8 @@ Discord vereist `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` en `DISCORD_ADMIN_I
 
 **Compacte weergave** verkleint de tussenruimte en toont commandokaarten naast elkaar als er ruimte is. Deze voorkeur blijft in je browser bewaard. De commandeditor toont onopgeslagen wijzigingen in amber, bevestigde opslag in groen en fouten in rood. **Toon wijzigingen** springt naar de bewerking. Bij navigeren, herladen of uitloggen word je gewaarschuwd; je kunt opslaan, teruggaan of expliciet verwerpen.
 
+**Gebruikerskleuren** is een aparte browservoorkeur: dezelfde @naam houdt dezelfde leesbare kleur. **MOD** markeert door TikTok bevestigde moderators; **BOT** blijft het eigen botaccount aanduiden. De navigatie gebruikt vaste icoon- en tekstkolommen.
+
 ## Samen gebruiken
 
 Alle toegelaten Discord-gebruikers delen één LIVE-verbinding, bot, commandoconfiguratie en moderatielog. Er zijn maximaal tien gelijktijdige chatstreams (tabs). Verbinden/Stop heeft effect voor iedereen. Bij gelijktijdig opslaan wint één revisie; een verouderde versie krijgt een conflictmelding en behoudt de bewerkingen in het scherm. Andere editors krijgen een melding van nieuwe opslag. Uitloggen sluit alleen de eigen streams. Filters, lokaal negeren en handmatig markeren zijn per browser, geen gedeelde beoordelingen. Publieke toegang en afzonderlijke bots per gebruiker zijn nog niet ingericht; de server blijft lokaal gebonden.
@@ -52,6 +54,10 @@ Het moderatielog bewaart Discord-gebruiker, doel, actie, tijd, duur en resultaat
 De botidentiteit wordt iedere vijf minuten gecontroleerd. Ontvangen cookieverversingen en vervaldatums worden verwerkt en in direct-modus atomair bewaard in `data/tiktok-session.json` (privébestand, Linux0600). Alleen gewijzigde cookies worden opgeslagen. Geldige opgeslagen waarden overleven een herstart; verwijderingen en expiries blijven bewaard en vallen niet terug op oude `.env`-waarden. De state hoort bij het botaccount en de bootstrapcredentials: wijzig je `.env`/`*_FILE`-cookies, dan begint de app na herstart met die nieuwe waarden. Deel dit sessiebestand en back-ups ervan nooit; het bevat echte logincredentials.
 
 Dit bewaart ontvangen rotaties, maar vernieuwt geen verlopen login uit zichzelf. Langdurige automatische herauthenticatie van botlogin, msToken of verifyFp blijft onbewezen. Bij authenticatiefouten, een challenge of429 stopt verzending tot handmatige hercontrole. Instellingen toont de sessiestatus en een handmatig verversbare diagnose met tellers, RAM en signerlatency. `/api/readiness` en `/api/diagnostics` vereisen Discord; `/health` blijft alleen proces-liveness, zodat een offline LIVE geen containerherstart veroorzaakt.
+
+Onder **Instellingen → Botcookies herstellen** kunnen Discord-beheerders de vier cookies van dezelfde botsessie invullen. Dit stopt de gedeelde LIVE, controleert het vaste botaccount en bewaart alleen een geldige sessie privé op de server. Bestaande waarden worden nooit teruggestuurd; de invoervelden worden na afloop gewist. Gewone dashboardleden krijgen geen toegang. De `.env` blijft bootstrap: dashboardherstel overleeft herstarts zolang die bootstrap niet wordt gewijzigd. Discord/Euler-sleutels blijven serverinstellingen. Er is nog geen browser-exporttool.
+
+De signer gebruikt één geïsoleerde, herbruikbare Node-worker met verse TikTok-context per aanvraag. Geen extra dependencies of netwerk in die worker. Hij stopt bij fouten, na100 aanvragen, boven128MiB RSS of na15 minuten inactiviteit; een volgende aanvraag mag opnieuw starten. Geen automatische herhaling van een mislukte aanvraag. Zie DEPLOYMENT.md voor de private alpha en nog onbewezen server-IP/duurproeven.
 
 Secrets blijven in `.env` of read-only gemounte secretbestanden. Ondersteunde `_FILE`-varianten en de private containeropzet staan in [DEPLOYMENT.md](DEPLOYMENT.md). Alleen `data/` vereist persistente opslag: commands, Discord-toegang en moderatielog. `.dev_docs/` staat uitsluitend lokaal in `.git/info/exclude`.
 

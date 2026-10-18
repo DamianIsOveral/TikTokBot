@@ -18,7 +18,8 @@ export interface DirectChatOptions {
 export function createDirectChat(credentials: DirectCredentials, username: string,
   publish: (value: ChatCapabilities) => void, options: DirectChatOptions = {}) {
   const now = options.now || Date.now;
-  const jar=options.sessionState?.jar||createBotCookies(credentials,now);
+  let jar=options.sessionState?.jar||createBotCookies(credentials,now);
+  let repairing=false;
   let sessionState:NonNullable<ChatCapabilities['session']>['state']='checking';
   const signerStats={initializations:0,requests:0,failures:0};
   const timings:number[]=[];
@@ -53,6 +54,7 @@ export function createDirectChat(credentials: DirectCredentials, username: strin
   }
 
   function refresh(force = false): Promise<ChatCapabilities> {
+    if(repairing)return Promise.resolve(snapshot());
     if (closed) return Promise.resolve(snapshot());
     if (pending) return pending;
     if ((sendFailed && !force) || now() - attemptedAt < (force ? 30_000 : 300_000)) return Promise.resolve(snapshot());
@@ -68,6 +70,7 @@ export function createDirectChat(credentials: DirectCredentials, username: strin
             try{const result=await sign(input);if(Number.isFinite(result.signMs)&&result.signMs>=0){timings.push(result.signMs);if(timings.length>100)timings.shift();}return result;}
             catch(error){signerStats.failures++;throw error;}
           };
+          signer.close=()=>sign.close?.();signer.workerStats=()=>sign.workerStats?.()||{starts:0,restarts:0};
         }
         const next = client ?? createDirectClient(credentials, request, { signRequest: signer,cookieJar:jar,flushCookies:options.sessionState?.flush });
         await next.verifyIdentity();
@@ -118,10 +121,34 @@ export function createDirectChat(credentials: DirectCredentials, username: strin
   function setModerationAvailable(allowed: boolean) {
     if (value.moderation !== allowed) update({ ...value, moderation: allowed && canSend() });
   }
+  async function replaceSession(nextCredentials:DirectCredentials,authorized:()=>boolean):Promise<ChatCapabilities>{
+    if(!options.sessionState||repairing||closed)throw new DirectTikTokError('inactive');
+    repairing=true;revision++;sendFailed=true;validUntil=0;sessionState='checking';
+    update({state:'checking',chat:false,moderation:false,checkedAt:value.checkedAt,reason:'Nieuwe botcookies worden gecontroleerd; verzending is gepauzeerd.'});
+    try{
+      await pending;
+      return await run(async()=>{
+        if(!authorized()||closed)throw new DirectTikTokError('inactive');
+        if(!signer)throw new DirectTikTokError('signing');
+        if(nextCredentials.botUsername.toLowerCase()!==credentials.botUsername.toLowerCase())throw new DirectTikTokError('identity');
+        const candidateJar=createBotCookies(nextCredentials,now);
+        let adopted=false;
+        const candidate=createDirectClient(nextCredentials,request,{signRequest:signer,cookieJar:candidateJar,
+          flushCookies:async()=>{if(adopted)await options.sessionState!.flush();}});
+        await candidate.verifyIdentity();
+        if(!authorized()||closed)throw new DirectTikTokError('inactive');
+        options.sessionState!.replaceJar(candidateJar);
+        try{await options.sessionState!.flush();}catch{options.sessionState!.replaceJar(jar);throw new DirectTikTokError('session-storage');}
+        adopted=true;jar=candidateJar;client=candidate;validUntil=now()+300_000;sendFailed=false;sessionState='healthy';
+        return update({state:'available',chat:true,moderation:false,checkedAt:new Date(now()).toISOString(),reason:'Nieuwe botcookies gecontroleerd en privé opgeslagen. Verbind opnieuw met LIVE.'});
+      });
+    }catch(error){pause(error);throw error;}finally{repairing=false;}
+  }
   return { snapshot, refresh, canSend, send: (text: string, roomId: string | undefined, active: () => boolean) => run(() => send(text, roomId, active)),
+    replaceSession,canReplaceSession:()=>Boolean(options.sessionState),
     withModeration, setModerationAvailable,botUserId:()=>client?.botUserId(),
-    diagnostics:()=>{const sorted=timings.slice().sort((a,b)=>a-b);return {...signerStats,
+    diagnostics:()=>{const sorted=timings.slice().sort((a,b)=>a-b);return {...signerStats,...(signer?.workerStats?.()||{}),
       p50Ms:sorted.length?sorted[Math.ceil(sorted.length*.5)-1]:null,p95Ms:sorted.length?sorted[Math.ceil(sorted.length*.95)-1]:null};},
-    close: () => { closed = true; revision++; client = undefined; controller.abort(); } };
+    close: () => { closed = true; revision++; client = undefined;signer?.close?.(); controller.abort(); } };
 }
 export type DirectChat = ReturnType<typeof createDirectChat>;

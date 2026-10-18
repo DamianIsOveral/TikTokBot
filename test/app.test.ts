@@ -84,7 +84,7 @@ test('HTTP beschermt secrets en weigert cross-origin mutaties', async t => {
       queue.push(new URL(match[1], base + path).pathname);
     }
   }
-  assert.equal(modules.size, 20);
+  assert.equal(modules.size, 22);
   for (const path of ['/.env', '/src/server/config.ts', '/assets/app.ts', '/.git/config', '/.local-archive/faynominaalbot/.env']) {
     assert.equal((await fetch(base + path)).status, 404);
   }

@@ -4,6 +4,34 @@ Deze eerste containeropzet blijft op `127.0.0.1` luisteren. Eén gedeelde bot, �
 geen publiek domein of Coolify-proxy aansluiten. Gebruikersisolatie en publieke HTTPS-configuratie
 zijn nog een aparte stap. De Compose-opzet gebruikt Linux host networking om de lokale binding te behouden.
 
+## Eerste private versie
+
+Gebruik in Coolify een Git-gebaseerde Compose-app met Base Directory `/` en Compose Location `/compose.coolify.yaml`.
+Deze variant verwijst expliciet naar Coolify-runtimevariabelen en vereist geen meegestuurde `.env`.
+Vul de vereiste velden in Environment Variables; het standaard Compose-bestand blijft voor lokale Docker-proeven beschikbaar.
+Kies Advanced → Docker compose → Compose deployment → Raw (deploy file as-is), zodat host networking behouden blijft.
+Gebruik geen predefined network of domein. Zet build arguments op Managed manually in Dockerfile; secrets zijn uitsluitend runtimevariabelen.
+De callback wordt lokaal uit HOST/PORT opgebouwd, standaard `http://127.0.0.1:3000/auth/discord/callback`.
+
+De app is technisch geschikt voor een private alpha: Discord-toegang, gedeelde bot, moderatie/audit,
+privé-cookieopslag en Docker-smoketests zijn aanwezig. Nog niet bewezen: TikTok-acceptatie vanaf jouw server-IP
+en langere LIVE-sessies zonder herlogin. Een publiek domein blijft buiten deze versie.
+
+- Stop de lokale bot vóór de overstap; gebruik één actieve instantie voor dit kanaal.
+- Start op Coolify eerst met `BOT_ENABLED=false`, `TIKTOK_MODERATION_ENABLED=false` en `LIVE_AUTO_CONNECT=false`.
+  Controleer via de SSH-tunnel Discord-login, diagnose, anonieme ontvangst en de botsessie zonder berichten te sturen.
+- Vul de Coolify-runtimeomgeving/privé-`.env` met de bootstrapcredentials en Discord/Euler-instellingen.
+  Behoud de named datavolume, UID1000, host networking en localhostbinding; stel geen domein/router in.
+- Beheerders kunnen daarna onder Instellingen → Botcookies herstellen de vier TikTok-cookies vernieuwen.
+  Dit stopt LIVE, verifieert het vaste BOT_USERNAME en schrijft alleen bij correcte identiteit naar het volume.
+  Waarden worden niet teruggelezen of in de browser bewaard. Herstel logt alleen Discord-ID en tijd in het serverlog.
+- Schakel bot/moderatie pas na die controle in via de serverconfiguratie. Aanvullende echte schrijfproeven
+  vragen nog steeds toestemming volgens AGENTS.md. Controleer na een containerherstart dat de sessiestatus klopt.
+
+Een toekomstige browser-exporttool hoort op de eigen pc te draaien: handmatig inloggen/challenges oplossen,
+alleen de vier benodigde cookievelden meenemen en via het beheerdersformulier overdragen. De Coolify-host
+heeft daarvoor geen browser nodig. Automatische herlogin is hiermee nog niet geregeld.
+
 1. Kopieer `.env.example` naar een lokale `.env` buiten Git en vul de eigen instellingen in.
 2. Registreer `http://127.0.0.1:3000/auth/discord/callback` bij Discord.
 3. Controleer lokaal met `npm run config:check` (toont geen secretwaarden).
@@ -18,6 +46,9 @@ Controleer vooraf of poort 3000 vrij is. Geen tweede replica starten.
 
 De image draait als niet-root met uitsluitend runtime-dependencies en vooraf gecontroleerde
 openbare signerbestanden. Secrets komen pas bij starten binnen; niet via build arguments.
+Eén herbruikbare signerworker start pas bij ondertekening, heeft64MiB heap en geen netwerktoegang.
+Na100 aanvragen, RSS boven128MiB, een fout of15 minuten inactiviteit sluit hij; de volgende aanvraag
+mag een nieuw proces starten. Een mislukte aanvraag wordt nooit automatisch opnieuw verstuurd.
 `data/commands.json`, `data/access.json`, `data/moderation-audit.json` en in direct-modus `data/tiktok-session.json` staan in het persistente volume. Het sessiebestand bevat logincredentials: houd het volume en eventuele back-ups privé. Linuxbestandsrechten zijn0600.
 Containerhealth controleert alleen de webserver, niet of TikTok LIVE is of tokens geldig zijn.
 

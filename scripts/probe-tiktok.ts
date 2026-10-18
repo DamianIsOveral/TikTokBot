@@ -5,6 +5,8 @@ import { createReadOnlyRequest } from '../src/server/tiktok/read-only-request.ts
 import type { TikTokLiveConnection as SdkConnection } from 'tiktok-live-connector';
 import type { Connector } from '../src/server/types.ts';
 import { readSecretEnvironment } from '../src/server/secret-env.ts';
+import type {DirectRequestSigner} from '../src/server/tiktok/signing-profile.ts';
+let signer:DirectRequestSigner|undefined;
 
 const args = process.argv.slice(2);
 if (args.some(arg => !['--send-once', '--prepare-signed', '--send-signed-once'].includes(arg)) || args.length > 1) {
@@ -14,7 +16,7 @@ const env = readSecretEnvironment(process.env);
 const config = readConfig(env);
 try {
   const signed = args.includes('--prepare-signed') || args.includes('--send-signed-once');
-  const signer = signed ? await (await import('../src/server/tiktok/headless-signer.ts')).createHeadlessSigner() : undefined;
+  signer = signed ? await (await import('../src/server/tiktok/headless-signer.ts')).createHeadlessSigner() : undefined;
   const inspection = args.includes('--prepare-signed') ? createReadOnlyRequest() : undefined;
   const direct = createDirectClient({ sessionId: env.TIKTOK_SESSION_ID || '',
     targetIdc: env.TIKTOK_TARGET_IDC || '', botUsername: config.botUsername,
@@ -49,4 +51,4 @@ try {
     http: error instanceof DirectTikTokError ? error.status : undefined,
     apiCode: error instanceof DirectTikTokError ? error.apiCode : undefined }));
   process.exitCode = 1;
-}
+}finally{signer?.close?.();}

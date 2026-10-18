@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,rm,readFile,writeFile,stat,mkdir} from 'node:fs/promises';
+import {mkdtemp,rm,readFile,writeFile,stat,mkdir,chmod,symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {loadSessionState,SessionStateError} from '../src/server/tiktok/session-state.ts';
@@ -64,6 +64,22 @@ test('beschadigde of te grote state wordt geweigerd zonder cookie, inhoud of pad
       assert.ok(error instanceof SessionStateError);assert.ok(!/PRIVATE|SECRET|session\.json/.test(error.message));return true;
     });
   }
+  const source=await loadSessionState(path+'.valid',credentials);
+  source.jar.absorb(new Headers({'Set-Cookie':'msToken=ROTATED'}));await source.flush();
+  const valid=JSON.parse(await readFile(path+'.valid','utf8'));
+  for(const cookies of [{unknown:{value:'SECRET'}},{msToken:{value:'bad;cookie'}},{msToken:{value:''}},
+    {msToken:{value:'TOKEN',expires:null}},{msToken:{value:'TOKEN',extra:true}},[]]){
+    await writeFile(path,JSON.stringify({...valid,cookies}),{mode:0o600});
+    await assert.rejects(loadSessionState(path,credentials),SessionStateError);
+  }
+});
+
+test('POSIX weigert voor anderen leesbare sessiestate en symbolische links',{skip:process.platform==='win32'},async t=>{
+  const path=await fixture(t);const state=await loadSessionState(path,credentials);
+  state.jar.absorb(new Headers({'Set-Cookie':'msToken=ROTATED'}));await state.flush();
+  await chmod(path,0o644);await assert.rejects(loadSessionState(path,credentials),SessionStateError);
+  await chmod(path,0o600);await symlink(path,path+'.link');
+  await assert.rejects(loadSessionState(path+'.link',credentials),SessionStateError);
 });
 
 test('opslagfalen na ontvangen rotatie blokkeert verdere requests met een vaste fout',async t=>{

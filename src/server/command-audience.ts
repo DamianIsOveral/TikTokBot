@@ -1,5 +1,6 @@
 import type { CommandDefinition } from '../shared/commands.ts';
 import type { TikTokMessage } from './types.ts';
+import {isChatModerator} from './chat-role.ts';
 
 export function mayTriggerCommand(audience: CommandDefinition['audience'], message: TikTokMessage, channel: string): boolean {
   if(!audience || audience==='everyone')return true;
@@ -8,8 +9,7 @@ export function mayTriggerCommand(audience: CommandDefinition['audience'], messa
   const handle=user?.uniqueId||user?.displayId;
   if(identity?.isAnchor===true || (typeof handle==='string' && handle.toLowerCase()===channel.toLowerCase()))return true;
   const badges=Array.isArray(user?.badgeList)?user.badgeList.slice(0,50).filter(badge=>badge&&typeof badge==='object'):[];
-  const moderator=identity?.isModeratorOfAnchor===true || user?.userAttr?.isAdmin===true
-    || badges.some(badge=>badge.sceneType===1);
+  const moderator=isChatModerator(message);
   if(moderator)return true;
   if(audience==='moderators')return false;
   const subscriber=identity?.isSubscriberOfAnchor===true || badges.some(badge=>badge.sceneType===4 || badge.sceneType===7);

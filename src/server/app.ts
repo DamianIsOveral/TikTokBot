@@ -23,6 +23,7 @@ import { createAuditStore } from './moderation-audit.ts';
 import type { AuditStore } from '../shared/moderation.ts';
 import { createModerationRoutes } from './http/moderation-routes.ts';
 import {routeDiagnostics} from './http/diagnostic-routes.ts';
+import {createCredentialRoutes} from './http/credential-routes.ts';
 
 export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, commands = createCommandStore(),
   access = createAccessStore(config.discord.adminIds), provider?: DiscordProvider, accountReader?: AccountReader,
@@ -46,6 +47,7 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
   rightsTimer.unref();
   const auth = createAuth(config.discord, access, events.revalidate, provider);
   const routeModeration = createModerationRoutes(config, direct, live, session, audit);
+  const routeCredentials=createCredentialRoutes(config,direct,live);
   const server = http.createServer(async (req, res) => {
     if (!secureRequest(req, res, config.port)) return;
     if (req.url === '/health' && req.method === 'GET') {
@@ -68,6 +70,7 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
     if (req.url?.split('?')[0] === '/login') { res.writeHead(302, { Location: '/' }).end(); return; }
     if (await routeAccess(req, res, access, user, () => { auth.revalidate(); events.disconnect(); })) return;
     if (await routeModeration(req, res, user, () => !!auth.user(req))) return;
+    if(await routeCredentials(req,res,user,()=>auth.user(req)?.role==='admin'))return;
     if (await routeCapabilities(req, res, capabilities)) return;
     if(routeDiagnostics(req,res,live,capabilities,config.botEnabled,direct))return;
     if (await routeCommands(req, res, commands, config.botEnabled, capabilities,

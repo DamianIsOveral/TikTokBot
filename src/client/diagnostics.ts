@@ -17,7 +17,7 @@ export function mountDiagnostics(root:HTMLElement):void {
         +`Proces: ${Math.floor(value.uptimeSeconds/60)} minuten actief, ${value.rssMiB} MiB RAM. Herverbindingen: ${value.live.reconnects}. `
         +`Commands: ${value.commands.matched} herkend, ${value.commands.sent} berichten bevestigd, ${value.commands.rateLimited} overgeslagen door limieten, `
         +`${value.commands.roleDenied} zonder toegangsrol, ${value.commands.failed} fouten. `
-        +(value.signer?`Signer: ${value.signer.requests} aanvragen, ${value.signer.failures} fouten, p95 ${value.signer.p95Ms??'—'} ms (laatste 100).`:'');
+        +(value.signer?`Signer: ${value.signer.requests} aanvragen, ${value.signer.failures} fouten, p95 ${value.signer.p95Ms??'—'} ms (laatste 100), ${value.signer.starts??0} workerstarts.`:'');
     }catch{output.textContent='Diagnose ophalen mislukt. Controleer de dashboardverbinding.';}
     finally{button.disabled=false;}
   }

@@ -1,10 +1,12 @@
 import { createHeadlessSigner } from '../src/server/tiktok/headless-signer.ts';
 import { signingFields, signingSdkVersion, signingUserAgent } from '../src/server/tiktok/signing-profile.ts';
+import type {DirectRequestSigner} from '../src/server/tiktok/signing-profile.ts';
+let sign:DirectRequestSigner|undefined;
 
 try {
   if (process.argv.length !== 2) throw new Error();
   const started = performance.now();
-  const sign = await createHeadlessSigner();
+  sign = await createHeadlessSigner();
   const payload = { room_id: '7300000000000000001', content: 'OfflineTest', emotes_with_index: '', input_type: 0,
     client_start_timestamp_millisecond: Date.now() };
   const query = new URLSearchParams({ aid: '1988', app_name: 'tiktok_web' });
@@ -19,8 +21,9 @@ try {
     signMs: results.map(result => Math.round(result.signMs)),
     rssMiB: results.map(result => Math.round(result.rssMiB)),
     totalMs: Math.round(performance.now() - started)
+    ,worker:sign.workerStats?.()
   }));
 } catch {
   console.log('Lokale ondertekeningsproef mislukt; er is geen TikTok-actie uitgevoerd.');
   process.exitCode = 1;
-}
+}finally{sign?.close?.();}

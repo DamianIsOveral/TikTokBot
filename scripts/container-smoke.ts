@@ -69,7 +69,7 @@ async function checkHttp(): Promise<void> {
   assert.deepEqual(await session.json(), { configured: true, authenticated: false });
   const rejectedLogin = await request('/auth/discord/callback?code=CI_FAKE_CODE&state=CI_INVALID_STATE', 302);
   assert.equal(rejectedLogin.headers.get('location'), '/login?error=state');
-  for (const path of ['/api/config', '/api/snapshot', '/api/commands', '/api/access', '/api/capabilities', '/api/moderation', '/api/moderation/audit','/api/readiness','/api/diagnostics']) {
+  for (const path of ['/api/config', '/api/snapshot', '/api/commands', '/api/access', '/api/capabilities', '/api/moderation', '/api/moderation/audit','/api/readiness','/api/diagnostics','/api/bot-session']) {
     await request(path, 401);
   }
   await request('/api/connect', 401, 'POST');
@@ -112,6 +112,14 @@ try {
     const state=await loadSessionState('/app/data/tiktok-session.json',
       {botUsername:'ci_bot',sessionId:'CI_FAKE_SESSION',targetIdc:'test',msToken:'CI_FAKE_TOKEN',verifyFp:'verify_CI_FAKE'});
     state.jar.absorb(new Headers({'Set-Cookie':'msToken=CI_FAKE_ROTATED; Max-Age=3600'}));await state.flush();`);
+  inside(`import assert from 'node:assert/strict';
+    import {createHeadlessSigner} from '/app/src/server/tiktok/headless-signer.ts';
+    import {signingUserAgent} from '/app/src/server/tiktok/signing-profile.ts';
+    globalThis.fetch=async()=>{throw new Error('Geen netwerk in deze signerproef.');};
+    const signer=await createHeadlessSigner();
+    try{const input={url:'https://webcast.tiktok.com/webcast/room/chat/?room_id=7300000000000000001&content=OfflineCI',userAgent:signingUserAgent,msToken:'CI_FAKE_TOKEN'};
+      await signer(input);await signer({...input,msToken:'CI_OTHER_TOKEN'});assert.equal(signer.workerStats().starts,1);
+    }finally{signer.close();}`);
   stopAndRemove();
   start(); await ready(); await checkHttp();
   inside(`import assert from 'node:assert/strict'; import { statSync } from 'node:fs';

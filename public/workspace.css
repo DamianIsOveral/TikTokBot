@@ -1,5 +1,17 @@
 :root{--success:#75e3b1;--danger:#ff9b9b}
 .bot-label{display:inline-block;margin-left:6px;padding:2px 5px;border:1px solid #337a85;border-radius:4px;color:var(--cyan);font-size:10px;vertical-align:middle}
+.mod-label{display:inline-block;margin-left:6px;padding:2px 5px;border:1px solid #45876a;border-radius:4px;color:#80e3ad;font-size:10px;vertical-align:middle}
+.display-preferences{gap:18px;flex-wrap:wrap}
+nav button{display:grid;grid-template-columns:24px 1fr;align-items:center;column-gap:16px;border-left:4px solid transparent;padding-left:16px;line-height:1.3}
+nav button span{margin:0;line-height:1.4}
+nav button .nav-icon{display:grid;place-items:center;width:24px;height:28px;font-size:22px;line-height:1}
+body.compact nav button{padding-left:10px;column-gap:12px}
+body.username-colors .user-color-0{color:#80d9ff}body.username-colors .user-color-1{color:#e6a6ff}
+body.username-colors .user-color-2{color:#8be3b1}body.username-colors .user-color-3{color:#ffbb91}
+body.username-colors .user-color-4{color:#ff9db9}body.username-colors .user-color-5{color:#c3ceff}
+body.username-colors .user-color-6{color:#ead78f}body.username-colors .user-color-7{color:#8ce2d9}
+body.username-colors .user-color-8{color:#bfdfa0}body.username-colors .user-color-9{color:#f0b7e8}
+body.username-colors .user-color-10{color:#a4c8ff}body.username-colors .user-color-11{color:#d7c3aa}
 .display-preferences{display:flex;justify-content:flex-end;margin-top:-8px;margin-bottom:-8px}
 .display-preferences label{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;cursor:pointer}
 .display-preferences input{width:auto;accent-color:var(--cyan)}
@@ -20,6 +32,9 @@
 .command-tags{display:flex;gap:6px;flex-wrap:wrap}
 .command-tags button{padding:5px 9px;font-size:12px;color:#a5dcf2}
 .command-limits p{font-size:13px;line-height:1.6}
+.credential-editor{margin:18px 0;padding:14px;border:1px solid var(--line);border-radius:9px}
+.credential-editor summary{cursor:pointer;color:var(--cyan)}
+.credential-editor [data-credential-status]{color:#a9d7e9;line-height:1.5}
 .button-primary{background:#17637b;border-color:#258eaa;color:#fff;font-weight:600}
 .button-danger{background:#3b2029;border-color:#a65367;color:#ffc3cf}
 [data-jump]{border-color:#bd8a37;color:#ffd28a}

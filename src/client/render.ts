@@ -4,6 +4,7 @@ import { pending, state } from './model.js';
 import type { Message } from './model.js';
 import { renderPage } from './pages.js';
 import { moderationDisabledReason } from '../shared/moderation-policy.js';
+import {usernameColor} from '../shared/username-color.js';
 
 function avatar(message: Message): string { return escapeHTML(message.user[0]?.toUpperCase() || '?'); }
 function actionButtons(message: Message): string {
@@ -26,7 +27,7 @@ export function render(): void {
   element('#chat').innerHTML = rows.map(message => {
     const flagged = !message.resolved && (message.manualReview || automaticCategory(message, state.settings));
     return `<div data-message="${message.id}" class="row ${flagged ? 'flagged' : ''}"><time>${escapeHTML(message.time)}</time>
-      <div class="avatar">${avatar(message)}</div><strong>${escapeHTML(message.user)}${message.isBot?'<small class="bot-label">BOT</small>':''}</strong>
+      <div class="avatar">${avatar(message)}</div><strong class="user-color-${usernameColor(message.user)}">${escapeHTML(message.user)}${message.isBot?'<small class="bot-label">BOT</small>':''}${message.isModerator?'<small class="mod-label">MOD</small>':''}</strong>
       <p>${escapeHTML(message.text)}</p><button class="review-message" data-menu="${message.id}"
       aria-label="Acties voor @${escapeHTML(message.user)}" aria-haspopup="menu" aria-controls="message-menu"
       aria-expanded="${state.menuMessageId === message.id}" title="Berichtacties">⋯</button></div>`;
@@ -38,7 +39,7 @@ export function render(): void {
   element('#reviews').innerHTML = items
     .filter(message => state.filter === 'Alle' || automaticCategory(message, state.settings) === state.filter)
     .reverse().map(message => `<div class="card"><div class="cardtop"><div class="avatar">${avatar(message)}</div>
-      <div class="cardbody"><time>${escapeHTML(message.time)}</time><strong>@${escapeHTML(message.user)}</strong>
+      <div class="cardbody"><time>${escapeHTML(message.time)}</time><strong class="user-color-${usernameColor(message.user)}">@${escapeHTML(message.user)}${message.isModerator?'<small class="mod-label">MOD</small>':''}</strong>
       <p>${escapeHTML(message.text)}</p><span class="tag">${escapeHTML(automaticCategory(message, state.settings) || 'Handmatig')}</span></div></div>
       ${actionButtons(message)}</div>`).join('')
     || '<div class="empty">✓ Geen berichten om te beoordelen.</div>';

@@ -5,7 +5,7 @@ import { displayTime } from './dom.js';
 import type { ChatCapabilities } from '../shared/capabilities.js';
 
 export type Page = 'Overzicht' | 'Livechat' | 'Moderatie' | 'Filters' | 'Commands' | 'Toegang' | 'Instellingen';
-export interface Message { id: number; user: string; text: string; time: string; resolved: boolean; manualReview?: boolean; userId?: string; secUid?: string; isBot?: boolean }
+export interface Message { id: number; user: string; text: string; time: string; resolved: boolean; manualReview?: boolean; userId?: string; secUid?: string; isBot?: boolean;isModerator?:boolean }
 interface DashboardState {
   settings: FilterSettings;
   messages: Message[];
@@ -28,10 +28,10 @@ export const state: DashboardState = {
   page: 'Livechat', liveMode: true, phase: 'idle', serverConnected: false, username: 'faynominaal',botUsername:''
 };
 
-export function addMessage(user: string, text: string, time = displayTime(), identity?: { id?: number; userId?: string; secUid?: string; isBot?:boolean }): void {
+export function addMessage(user: string, text: string, time = displayTime(), identity?: { id?: number; userId?: string; secUid?: string; isBot?:boolean;isModerator?:boolean }): void {
   const id = identity?.id && Number.isSafeInteger(identity.id) && identity.id > 0 ? identity.id : state.nextId++;
   state.nextId = Math.max(state.nextId, id + 1);
-  state.messages.push({ id, user, text, time, resolved: false, userId: identity?.userId, secUid: identity?.secUid,isBot:identity?.isBot===true });
+  state.messages.push({ id, user, text, time, resolved: false, userId: identity?.userId, secUid: identity?.secUid,isBot:identity?.isBot===true,isModerator:identity?.isModerator===true });
   if (state.messages.length > 500) state.messages.shift();
 }
 

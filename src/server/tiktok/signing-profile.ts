@@ -30,7 +30,7 @@ export const signingAssetPaths = signingAssets.map(asset => fileURLToPath(new UR
 export interface SigningInput { url: string; userAgent: string; msToken?: string; cookie?: string; method?: 'POST'; body?: string;
   contentType?: 'application/json' | 'application/x-www-form-urlencoded' }
 export interface SigningResult { signedUrl: string; signMs: number; rssMiB: number }
-export type DirectRequestSigner = (input: SigningInput) => Promise<SigningResult>;
+export type DirectRequestSigner = ((input: SigningInput) => Promise<SigningResult>)&{close?:()=>void;workerStats?:()=>{starts:number;restarts:number}};
 
 export function assertSigningVersion(html: string): void {
   const versions = new Set([...html.matchAll(/\/webmssdk\/([\d.]{1,32})\/webmssdk\.js/g)].map(match => match[1]));

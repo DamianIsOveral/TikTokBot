@@ -17,6 +17,7 @@ export interface IncomingChat {
   userId?: string;
   secUid?: string;
   isBot?: boolean;
+  isModerator?:boolean;
 }
 
 export interface BotEvent { type: 'bot'; text: string }
