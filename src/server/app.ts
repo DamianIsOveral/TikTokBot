@@ -49,7 +49,7 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
   const routeModeration = createModerationRoutes(config, direct, live, session, audit);
   const routeCredentials=createCredentialRoutes(config,direct,live);
   const server = http.createServer(async (req, res) => {
-    if (!secureRequest(req, res, config.port)) return;
+    if (!secureRequest(req, res, config)) return;
     if (req.url === '/health' && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
       res.end('{"ok":true,"app":"faynominaal-live"}'); return;

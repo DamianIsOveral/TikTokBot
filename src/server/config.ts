@@ -7,6 +7,7 @@ import { readSecretEnvironment } from './secret-env.ts';
 export interface AppConfig {
   host: string;
   port: number;
+  publicOrigin?: string;
   username: string;
   botEnabled: boolean;
   botUsername: string;
@@ -22,8 +23,17 @@ export interface AppConfig {
 export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   env = readSecretEnvironment(env);
   const host = env.HOST || '127.0.0.1';
-  if (!['127.0.0.1', '::1', 'localhost'].includes(host)) {
-    throw new Error('HOST moet lokaal blijven totdat authenticatie is geïmplementeerd.');
+  let publicOrigin: string | undefined;
+  if (env.PUBLIC_ORIGIN) {
+    const origin = new URL(env.PUBLIC_ORIGIN);
+    if (origin.protocol !== 'https:' || origin.pathname !== '/' || origin.search || origin.hash
+      || origin.username || origin.password || ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname)) {
+      throw new Error('PUBLIC_ORIGIN moet een HTTPS-origin zonder pad of credentials zijn.');
+    }
+    publicOrigin = origin.origin;
+  }
+  if (!['127.0.0.1', '::1', 'localhost'].includes(host) && !(publicOrigin && ['0.0.0.0', '::'].includes(host))) {
+    throw new Error('Publieke HOST vereist een expliciete HTTPS PUBLIC_ORIGIN.');
   }
   const port = Number(env.PORT || 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Ongeldige PORT.');
@@ -42,12 +52,16 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (chatTransport === 'direct' && (!credentials.every(Boolean) || !env.TIKTOK_MS_TOKEN || !env.TIKTOK_VERIFY_FP)) {
     throw new Error('Directe chat vereist de TikTok/Euler-instellingen en botcookies TIKTOK_MS_TOKEN/TIKTOK_VERIFY_FP.');
   }
-  return { host, port, username, botEnabled, botUsername, chatTransport,
+  const discord = readDiscordConfig(env, host, port, publicOrigin);
+  if (publicOrigin && !(discord.clientId && discord.clientSecret && discord.adminIds.length)) {
+    throw new Error('Publieke deployment vereist Discord-client, secret en vaste beheerders.');
+  }
+  return { host, port, publicOrigin, username, botEnabled, botUsername, chatTransport,
     autoReconnect: env.LIVE_AUTO_RECONNECT !== 'false', autoConnect: env.LIVE_AUTO_CONNECT === 'true',
     moderationEnabled: env.TIKTOK_MODERATION_ENABLED === 'true',
     directCredentials: chatTransport === 'direct' ? { sessionId: credentials[1]!, targetIdc: credentials[2]!, botUsername,
       msToken: env.TIKTOK_MS_TOKEN, verifyFp: env.TIKTOK_VERIFY_FP } : undefined,
-    discord: readDiscordConfig(env, host, port),
+    discord,
     options: chatTransport==='direct'?{processInitialData:false,signApiKey:credentials[0],authenticateWs:false}:credentials.every(Boolean) ? {
       processInitialData: false, signApiKey: credentials[0], authenticateWs: true,
       session: { cookie: { type: 'cookie', value: { sessionId: credentials[1]!, ttTargetIdc: credentials[2]! } } }

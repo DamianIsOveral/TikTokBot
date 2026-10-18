@@ -19,7 +19,7 @@ Discord vereist `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` en `DISCORD_ADMIN_I
 
 ## Samen gebruiken
 
-Alle toegelaten Discord-gebruikers delen één LIVE-verbinding, bot, commandoconfiguratie en moderatielog. Er zijn maximaal tien gelijktijdige chatstreams (tabs). Verbinden/Stop heeft effect voor iedereen. Bij gelijktijdig opslaan wint één revisie; een verouderde versie krijgt een conflictmelding en behoudt de bewerkingen in het scherm. Andere editors krijgen een melding van nieuwe opslag. Uitloggen sluit alleen de eigen streams. Filters, lokaal negeren en handmatig markeren zijn per browser, geen gedeelde beoordelingen. Publieke toegang en afzonderlijke bots per gebruiker zijn nog niet ingericht; de server blijft lokaal gebonden.
+Alle toegelaten Discord-gebruikers delen één LIVE-verbinding, bot, commandoconfiguratie en moderatielog. Er zijn maximaal tien gelijktijdige chatstreams (tabs). Verbinden/Stop heeft effect voor iedereen. Bij gelijktijdig opslaan wint één revisie; een verouderde versie krijgt een conflictmelding en behoudt de bewerkingen in het scherm. Andere editors krijgen een melding van nieuwe opslag. Uitloggen sluit alleen de eigen streams. Filters, lokaal negeren en handmatig markeren zijn per browser, geen gedeelde beoordelingen. De server blijft standaard lokaal gebonden. Publieke HTTPS-toegang via Coolify vereist expliciete runtimeconfiguratie volgens [DEPLOYMENT.md](DEPLOYMENT.md); alle gebruikers blijven dezelfde bot delen.
 
 ## Bot en commands
 

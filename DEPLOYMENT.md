@@ -1,8 +1,45 @@
-# Private Docker-proef
+# Docker en Coolify
+
+## Publiek HTTPS-dashboard
+
+Gebruik één gedeelde bot met Discord-toegang; dit maakt geen afzonderlijke bots per gebruiker.
+De standaardconfiguratie en private Compose-bestanden blijven lokaal gebonden.
+Publieke toegang vereist expliciet `PUBLIC_ORIGIN` en volledig ingestelde Discord-client, secret en vaste beheerders.
+Bewaar echte domeinen en secrets uitsluitend in de runtimeconfiguratie, niet in Git.
+
+Coolify-configuratie voor de publieke variant:
+
+- Git-gebaseerde Compose-app; Base Directory `/`, Compose Location `/compose.coolify.public.yaml`.
+- Advanced → Docker compose → Compose deployment: **Managed by Coolify**. Gebruik geen host networking.
+- Advanced → Build → Build arguments: **Managed manually in Dockerfile**; secrets blijven runtimevariabelen.
+- Environment Variables: `PUBLIC_ORIGIN=https://dashboard.example.com`, plus de bestaande Discord/Euler/TikTok-instellingen.
+  Gebruik het eigen domein als runtimewaarde. `DISCORD_REDIRECT_URI` mag leeg zijn (automatisch afgeleid),
+  of moet exact dezelfde origin met `/auth/discord/callback` bevatten.
+- Registreer die exacte HTTPS-callback ook in de Discord Developer Portal onder OAuth2 → Redirects.
+- Domains: HTTPS, eigen hostname, service `dashboard`, interne poort **3000**, pad leeg; HTTP → HTTPS ingeschakeld.
+  De bezoekers-URL gebruikt geen `:3000`; de poort verwijst uitsluitend naar de container.
+- DNS: wijs de hostname naar de Coolify-server. Bij Cloudflare-proxying: SSL/TLS **Full (strict)** en een geldig origin-certificaat.
+  Coolify verzorgt TLS; poorten80/443 moeten de proxy bereiken. Publiceer poort3000 niet op de host.
+- Behoud de bestaande resource en named volume `dashboard-data:/app/data`; gebruik één replica.
+  De publieke variant gebruikt bridge networking met `HOST=0.0.0.0`, `PORT=3000` en `expose: 3000`.
+
+Deploy na samenvoegen van de wijziging. Controleer `/health`, de loginpagina, HTTPS-callback en Discord-toegang;
+onbekende Discord-IDs mogen niet binnenkomen. Test daarna opslaan en uitloggen.
+Start met `BOT_ENABLED=false`, `TIKTOK_MODERATION_ENABLED=false`, `LIVE_AUTO_CONNECT=false`.
+Echte TikTok-verzend-/moderatieproeven vereisen aparte toestemming.
+
+De app vertrouwt uitsluitend de ingestelde origin, niet `X-Forwarded-Host` of `X-Forwarded-Proto`.
+De proxy moet de oorspronkelijke Host behouden. OAuth- en sessiecookies gebruiken `Secure`, `HttpOnly`, `SameSite=Lax`.
+API-mutaties vereisen de exacte HTTPS-origin en de bestaande requestheader; Discord-toegang blijft verplicht.
+De lokale `/health` blijft voor Docker beschikbaar, andere lokale routes worden in publieke modus geweigerd.
+
+`npm run config:check` controleert de runtimeconfiguratie zonder secrets te tonen.
+CI test lokale en publieke requestgrenzen met fictieve credentials, plus beide containerconfiguraties op Linux.
+
+## Private Docker-proef
 
 Deze eerste containeropzet blijft op `127.0.0.1` luisteren. Eén gedeelde bot, één replica;
-geen publiek domein of Coolify-proxy aansluiten. Gebruikersisolatie en publieke HTTPS-configuratie
-zijn nog een aparte stap. De Compose-opzet gebruikt Linux host networking om de lokale binding te behouden.
+geen publiek domein of Coolify-proxy aansluiten. De private Compose-opzet gebruikt Linux host networking.
 
 ## Eerste private versie
 
@@ -15,7 +52,7 @@ De callback wordt lokaal uit HOST/PORT opgebouwd, standaard `http://127.0.0.1:30
 
 De app is technisch geschikt voor een private alpha: Discord-toegang, gedeelde bot, moderatie/audit,
 privé-cookieopslag en Docker-smoketests zijn aanwezig. Nog niet bewezen: TikTok-acceptatie vanaf jouw server-IP
-en langere LIVE-sessies zonder herlogin. Een publiek domein blijft buiten deze versie.
+en langere LIVE-sessies zonder herlogin.
 
 - Stop de lokale bot vóór de overstap; gebruik één actieve instantie voor dit kanaal.
 - Start op Coolify eerst met `BOT_ENABLED=false`, `TIKTOK_MODERATION_ENABLED=false` en `LIVE_AUTO_CONNECT=false`.
@@ -67,7 +104,7 @@ Stop annuleert herstel. `LIVE_AUTO_CONNECT=true` maakt na starten automatisch ee
 standaard blijft dit uit. Geen bericht wordt opnieuw verstuurd.
 
 De lokale moderatieproef is door TikTok geaccepteerd en door de gebruiker bevestigd. Nog te bewijzen vóór een publieke productieversie: langdurige tokenvernieuwing/herauthenticatie,
-server-IP-acceptatie en HTTPS/gebruikersisolatie. Een lokale geslaagde chatproef
+server-IP-acceptatie en gebruikersisolatie. Een lokale geslaagde chatproef
 garandeert geen maandenlange serverlogin. Docker-build op een Docker-host controleren;
 de ontwikkelomgeving heeft momenteel geen Docker-engine.
 
