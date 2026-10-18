@@ -4,12 +4,14 @@ import { randomUUID } from 'node:crypto';
 import type { CommandDefinition, CommandDocument } from '../shared/commands.ts';
 import { defaultCommands } from './command-defaults.ts';
 import { CommandError, validateCommands } from './command-validation.ts';
+import { defaultCommandLimits } from '../shared/command-policy.ts';
 
 export function createCommandStore(path?: string, initial: CommandDocument = { revision: 0, commands: defaultCommands() }) {
   let document = validateCommands(initial);
   let pending = Promise.resolve();
   return {
     list(): readonly CommandDefinition[] { return document.commands; },
+    limits() { return {...(document.limits||defaultCommandLimits)}; },
     snapshot(): CommandDocument { return structuredClone(document); },
     save(value: unknown): Promise<CommandDocument> {
       const candidate = validateCommands(value);
@@ -17,7 +19,7 @@ export function createCommandStore(path?: string, initial: CommandDocument = { r
         if (candidate.revision !== document.revision) {
           throw new CommandError('Commands zijn gewijzigd in een ander tabblad. Herlaad de opgeslagen versie en probeer opnieuw.', 409);
         }
-        const next = { ...candidate, revision: document.revision + 1 };
+        const next = { ...candidate, ...(!candidate.limits&&document.limits?{limits:{...document.limits}}:{}), revision: document.revision + 1 };
         if (path) {
           const temporary = `${path}.${randomUUID()}.tmp`;
           try {

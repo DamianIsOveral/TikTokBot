@@ -33,7 +33,7 @@ test('commando cooldown, botfilter en verzendinterval', async () => {
   assert.equal(sent.length, 0);
   await command({ content: '!socials' });
   assert.equal(sent.length, 6);
-  assert.deepEqual(waits, [0, 3000, 3000, 3000, 3000, 3000]);
+  assert.deepEqual(waits, [0, 30000, 30000, 30000, 30000, 30000]);
   await command({ content: '!socials' });
   assert.equal(sent.length, 6);
 });
@@ -84,7 +84,7 @@ test('HTTP beschermt secrets en weigert cross-origin mutaties', async t => {
       queue.push(new URL(match[1], base + path).pathname);
     }
   }
-  assert.equal(modules.size, 18);
+  assert.equal(modules.size, 19);
   for (const path of ['/.env', '/src/server/config.ts', '/assets/app.ts', '/.git/config', '/.local-archive/faynominaalbot/.env']) {
     assert.equal((await fetch(base + path)).status, 404);
   }

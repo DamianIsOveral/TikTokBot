@@ -37,7 +37,8 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
     if (event.type === 'status' && event.phase !== 'connected') direct?.setModerationAvailable(false);
     session.receive(event);
   }, loadConnector, () => commands.list(), capabilities.canSend,
-    direct ? (text, connection, active) => direct.send(text, connection.roomId, active) : undefined);
+    direct ? (text, connection, active) => direct.send(text, connection.roomId, active) : undefined,
+    undefined,()=>commands.limits());
   void capabilities.refresh();
   if (config.autoConnect) void live.connect();
   const rightsTimer = setInterval(() => { void capabilities.refresh(); }, 60_000);

@@ -4,7 +4,9 @@ export interface TikTokMessage {
   content?: string;
   comment?: string;
   uniqueId?: string;
-  user?: { uniqueId?: string; displayId?: string; id?: string; idStr?: string; secUid?: string };
+  userIdentity?: { isAnchor?: boolean; isModeratorOfAnchor?: boolean; isSubscriberOfAnchor?: boolean };
+  user?: { uniqueId?: string; displayId?: string; nickname?: string; id?: string; idStr?: string; secUid?: string;
+    userAttr?: { isAdmin?: boolean }; badgeList?: {sceneType?: number; image?: {urlList?:string[]}; combine?: {icon?:{urlList?:string[]}}}[] };
 }
 
 export type ConnectorOptions = NonNullable<ConstructorParameters<typeof TikTokLiveConnection>[1]>;

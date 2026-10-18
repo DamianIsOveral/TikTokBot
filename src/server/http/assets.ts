@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 const root = new URL('../../../', import.meta.url);
 const assets = new Map<string, [URL, string]>([
+  ['/shared/command-templates.js', [new URL('dist/browser/shared/command-templates.js', root), 'text/javascript; charset=utf-8']],
   ['/shared/command-policy.js', [new URL('dist/browser/shared/command-policy.js', root), 'text/javascript; charset=utf-8']],
   ['/shared/moderation-policy.js', [new URL('dist/browser/shared/moderation-policy.js', root), 'text/javascript; charset=utf-8']],
   ['/', [new URL('public/index.html', root), 'text/html; charset=utf-8']],

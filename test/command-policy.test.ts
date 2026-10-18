@@ -5,11 +5,11 @@ import { createCommandLimiter } from '../src/server/command-limiter.ts';
 import { createCommands } from '../src/server/commands.ts';
 
 test('lange antwoorden splitsen zonder links, woorden of Unicodeparen te beschadigen', () => {
-  const source = `${'a'.repeat(200)} ${'😀'.repeat(101)} https://example.invalid/test`;
+  const source = `${'a'.repeat(150)} ${'😀'.repeat(101)} https://example.invalid/test`;
   const plan = planResponses([source]);
   assert.equal(plan.error, '');
-  assert.ok(plan.messages.every(text => text.length <= 200 && text === text.trim()));
-  assert.equal(plan.messages[0], 'a'.repeat(200));
+  assert.ok(plan.messages.every(text => text.length <= 150 && text === text.trim()));
+  assert.equal(plan.messages[0], 'a'.repeat(150));
   assert.ok(plan.messages.every(text => !/[\uD800-\uDBFF]$|^[\uDC00-\uDFFF]/.test(text)));
   assert.ok(plan.messages.at(-1)?.includes('https://example.invalid/test'));
   assert.equal(planResponses(['https://example.invalid/' + 'x'.repeat(200)]).messages.length, 0);
@@ -23,12 +23,13 @@ test('globaal berichtbudget weigert een volledige batch als die niet past, zonde
   const commands = [{ trigger: '!a', responses: Array(6).fill('A'), enabled: true, cooldownSeconds: 5 },
     { trigger: '!b', responses: Array(5).fill('B'), enabled: true, cooldownSeconds: 5 }];
   const process = createCommands({ active: () => true, botUsername: 'bot', report: assert.fail,
-    getCommands: () => commands, now: () => time, wait: async ms => { time += ms; }, send: async text => { sent.push(text); } });
+    getCommands: () => commands, getLimits:()=>({intervalSeconds:30,maxMessagesPerHour:10}),
+    now: () => time, wait: async ms => { time += ms; }, send: async text => { sent.push(text); } });
   await process({ content: '!a', user: { uniqueId: 'one' } });
-  time += 11_000;
+  time += 31_000;
   await process({ content: '!b', user: { uniqueId: 'two' } });
   assert.equal(sent.length, 6);
-  time += 61_000;
+  time += 3600_000;
   await process({ content: '!b', user: { uniqueId: 'two' } });
   assert.equal(sent.length, 11);
 });
@@ -56,8 +57,10 @@ test('cooldown van één command blokkeert andere kijkers daarop, maar niet een 
   time+=10_000;
   assert.equal(limiter.reserve(1,'!dono','viewer2',60),undefined);
   assert.equal(limiter.reserve(1,'!socials','viewer1',60),undefined);
+  time+=20_000;
+  assert.equal(limiter.reserve(1,'!dono','viewer2',60),undefined);
   const other=limiter.reserve(1,'!socials','viewer2',60);
   assert.ok(other);other.record();other.close();
-  time+=20_000;
+  time+=30_000;
   assert.ok(limiter.reserve(1,'!third','viewer1',60));
 });

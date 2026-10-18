@@ -16,6 +16,9 @@
 .command-card.is-dirty legend{color:#ffd28a}
 .command-card.is-dirty legend::after{content:' · Niet opgeslagen';font-size:12px}
 .command-card :invalid:not(:disabled){border-color:#bb6571}
+.command-tags{display:flex;gap:6px;flex-wrap:wrap}
+.command-tags button{padding:5px 9px;font-size:12px;color:#a5dcf2}
+.command-limits p{font-size:13px;line-height:1.6}
 .button-primary{background:#17637b;border-color:#258eaa;color:#fff;font-weight:600}
 .button-danger{background:#3b2029;border-color:#a65367;color:#ffc3cf}
 [data-jump]{border-color:#bd8a37;color:#ffd28a}

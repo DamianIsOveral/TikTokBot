@@ -1,12 +1,15 @@
-import type { CommandDefinition, CommandSettings } from '../shared/commands.js';
+import type { CommandDefinition, CommandSettings, CommandLimits } from '../shared/commands.js';
 import { element, escapeHTML } from './dom.js';
 import type { ChatCapabilities } from '../shared/capabilities.js';
-import { commandPolicy, planResponses } from '../shared/command-policy.js';
+import { commandPolicy, defaultCommandLimits, planResponses } from '../shared/command-policy.js';
+import { commandTags, maximumTemplateContext, renderCommandTemplates } from '../shared/command-templates.js';
 import { registerUnsaved, confirmLeave } from './unsaved.js';
+import { state } from './model.js';
 
 let currentAccess: ((value: ChatCapabilities) => void) | undefined;
 let currentRevision: ((revision: number) => void) | undefined;
 let checkRevision: (() => void) | undefined;
+const audienceNames={everyone:'alle kijkers',moderators:'moderators en host',subscribers:'abonnees, moderators en host',supporters:'topgifters, abonnees, moderators en host'};
 export function updateCommandAccess(value: ChatCapabilities): void { currentAccess?.(value); }
 export function notifyCommandRevision(revision: number): void { currentRevision?.(revision); }
 export function checkCommandRevision(): void { checkRevision?.(); }
@@ -15,12 +18,16 @@ export function mountCommands(): void {
   const root = document.createElement('div');
   root.className = 'commands-editor';
   root.innerHTML = `<h2>Commands</h2>
-    <details class="command-help"><summary>Cooldowns, aliases en lange antwoorden</summary>
+    <details class="command-help"><summary>Cooldowns, tags en toegangsregels</summary>
     <p>De ingestelde cooldown geldt per commando voor alle kijkers; aliases delen deze cooldown.
     Daarnaast: 30 seconden per kijker over alle commands, 10 seconden globale pauze na een antwoord,
-    minimaal 3 seconden tussen berichten en maximaal 10 botberichten per minuut.</p>
-    <p>Lange antwoorden: maximaal 6 chatberichten van 200 tekens. Geen wachtrij: opdrachten tijdens een pauze worden overgeslagen.
-    Maximaal 10 aliases per commando.</p></details>
+    en de globale berichtlimieten hieronder. Geen wachtrij: opdrachten tijdens een pauze worden overgeslagen.</p>
+    <p>Lange antwoorden: maximaal 6 chatberichten van 150 tekens. Dit is onze eigen voorzichtige grens, geen garantie tegen TikTok-beperkingen.
+    Iedere deelregel telt mee voor het uurmaximum. Maximaal 10 aliases per commando.</p>
+    <p>Tags: {username} is de @naam zonder @, {displayname} de zichtbare naam (maximaal 40 tekens),
+    {channel} het LIVE-kanaal en {command} het hoofdcommando. Gewone tekst blijft ook mogelijk.</p>
+    <p>Toegang geldt voor de TikTok-kijker die het commando typt. De host en moderators mogen alle commands gebruiken.
+    Ontbrekende rolgegevens geven geen toegang tot beperkte commands. Topgifters betekent een herkende top-3-badge.</p></details>
     <p data-bot></p>
     <form data-form novalidate><div class="command-toolbar">
       <div data-status class="command-feedback" role="status" tabindex="-1">Commands laden…</div>
@@ -28,10 +35,16 @@ export function mountCommands(): void {
       <button type="button" data-add disabled>＋ Commando toevoegen</button>
       <button type="button" data-reload>Opgeslagen versie laden</button>
       <button type="button" data-jump hidden>Toon wijzigingen</button></div></div>
-      <p data-external class="command-external" role="status" hidden></p><div data-list></div>
+      <p data-external class="command-external" role="status" hidden></p>
+      <fieldset data-limits class="command-card command-limits"><legend>Globale botberichtlimieten</legend>
+      <div class="command-fields"><label>Seconden tussen berichten<input data-interval type="number" min="30" max="300" required value="30"></label>
+      <label>Maximaal berichten per uur<input data-hour type="number" min="5" max="120" required value="20"></label></div>
+      <p>Gedeeld door alle commands en kijkers, ook binnen lange antwoorden. Een vol uurvenster slaat nieuwe opdrachten over.
+      Het uurvenster blijft bij herverbinden behouden en begint opnieuw na een serverherstart.</p></fieldset><div data-list></div>
     </form><section class="command-preview"><h3>Antwoordpreview</h3>
     <p>Bekijk het antwoord van je huidige bewerkingen. Deze preview verstuurt niets naar TikTok.</p>
     <form data-preview><label>Commando<input data-test placeholder="!discord" maxlength="31"></label>
+    <label>Voorbeeldgebruikersnaam<input data-preview-user value="zeffuro" maxlength="24" pattern="[a-zA-Z0-9_.]{1,24}" required></label>
     <button type="submit">Antwoord bekijken</button></form><pre data-result></pre></section>`;
   element('#otherpage').replaceChildren(root);
   const find = <T extends HTMLElement = HTMLElement>(selector: string): T => {
@@ -47,6 +60,7 @@ export function mountCommands(): void {
   let botEnabled = false;
   let dirty = false;
   let baseline = '';
+  let baselineLimits = '';
   let remoteRevision = 0;
   let saving = false;
   const originals = new WeakMap<HTMLElement, string>();
@@ -61,7 +75,7 @@ export function mountCommands(): void {
     find('[data-status]').scrollIntoView({block:'nearest',behavior:'smooth'});
   };
   function lockForm(locked: boolean): void {
-    find('[data-form]').querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement>('input, textarea, button')
+    find('[data-form]').querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement | HTMLSelectElement>('input, textarea, button, select')
       .forEach(field => { field.disabled = locked || !loaded || !allowed; });
     find<HTMLButtonElement>('[data-reload]').disabled = locked;
     find<HTMLButtonElement>('[data-save]').disabled = locked || !loaded || !allowed || !dirty;
@@ -88,23 +102,31 @@ export function mountCommands(): void {
       <label for="trigger-${id}">Commando<input id="trigger-${id}" data-trigger required pattern="![a-zA-Z0-9_]{1,30}" maxlength="31" value="${escapeHTML(command.trigger)}" placeholder="!nieuw"></label>
       <label for="cooldown-${id}">Cooldown per commando (seconden)<input id="cooldown-${id}" data-cooldown type="number" min="5" max="3600" required value="${command.cooldownSeconds}"></label>
       <label class="command-enabled"><input data-enabled type="checkbox" ${command.enabled ? 'checked' : ''}> Ingeschakeld</label>
+      <label for="audience-${id}">Wie mag dit gebruiken?<select id="audience-${id}" data-audience>
+      <option value="everyone">Alle kijkers</option><option value="moderators">Alleen moderators en host</option>
+      <option value="subscribers">Abonnees, moderators en host</option>
+      <option value="supporters">Topgifters, abonnees, moderators en host</option></select></label>
       </div><label for="aliases-${id}">Aliases (gescheiden door komma’s)
       <input id="aliases-${id}" data-aliases maxlength="400" value="${escapeHTML((command.aliases || []).join(', '))}" placeholder="!dc, !community"></label>
       <label for="responses-${id}">Antwoorden (maximaal 1200 tekens totaal)
       <textarea id="responses-${id}" data-responses required>${escapeHTML(command.responses.join('\n'))}</textarea></label>
+      <div class="command-tags" aria-label="Tag invoegen">${commandTags.map(tag=>`<button type="button" data-tag="${tag}" title="Invoegen op de cursorpositie">{${tag}}</button>`).join('')}</div>
       <p data-plan role="status"></p>
       <button type="button" data-remove>Verwijderen</button>`;
     find('[data-list]').append(row);
+    row.querySelector<HTMLSelectElement>('[data-audience]')!.value=command.audience||'everyone';
     updatePlan(row);
   }
 
   function updatePlan(row: HTMLElement): void {
     const responses = row.querySelector<HTMLTextAreaElement>('[data-responses]')!.value.split(/\r?\n/).map(line => line.trim());
-    const plan = planResponses(responses);
+    const rendered=renderCommandTemplates(responses,maximumTemplateContext);
+    const plan = planResponses(rendered.responses,limitDraft());
+    const error=rendered.error||plan.error;
     const cooldown = Number(row.querySelector<HTMLInputElement>('[data-cooldown]')!.value);
-    row.querySelector('[data-plan]')!.textContent = plan.error || `${plan.messages.length} chatbericht${plan.messages.length === 1 ? '' : 'en'}
-      · ${plan.characters}/1200 tekens · minimaal ${plan.durationSeconds} seconden · effectieve cooldown ${Math.max(commandPolicy.minCooldownSeconds, cooldown || 0)} seconden.`;
-    row.querySelector<HTMLTextAreaElement>('[data-responses]')!.setCustomValidity(plan.error);
+    row.querySelector('[data-plan]')!.textContent = error || `Bij de langste tagwaarden: ${plan.messages.length} chatbericht${plan.messages.length === 1 ? '' : 'en'}
+      · ${plan.characters}/1200 tekens · minimaal ${plan.durationSeconds} seconden · effectieve commandcooldown ${Math.max(commandPolicy.minCooldownSeconds, cooldown || 0)} seconden.`;
+    row.querySelector<HTMLTextAreaElement>('[data-responses]')!.setCustomValidity(error);
   }
 
   function rowDraft(row: HTMLElement): CommandDefinition {
@@ -113,25 +135,35 @@ export function mountCommands(): void {
       aliases: row.querySelector<HTMLInputElement>('[data-aliases]')!.value.split(',').map(text => text.trim().toLowerCase()).filter(Boolean),
       cooldownSeconds: Number(row.querySelector<HTMLInputElement>('[data-cooldown]')!.value),
       enabled: row.querySelector<HTMLInputElement>('[data-enabled]')!.checked,
+      audience: row.querySelector<HTMLSelectElement>('[data-audience]')!.value as CommandDefinition['audience'],
       responses: row.querySelector<HTMLTextAreaElement>('[data-responses]')!.value.split(/\r?\n/).map(text => text.trim())
     };
   }
   function draft(): CommandDefinition[] {
-    return [...root.querySelectorAll<HTMLElement>('.command-card')].map(rowDraft);
+    return [...root.querySelectorAll<HTMLElement>('[data-list] .command-card')].map(rowDraft);
   }
+  function limitDraft(): CommandLimits {
+    return {intervalSeconds:Number(find<HTMLInputElement>('[data-interval]').value),
+      maxMessagesPerHour:Number(find<HTMLInputElement>('[data-hour]').value)};
+  }
+  function draftKey(): string { return JSON.stringify({commands:draft(),limits:limitDraft()}); }
   function track(announce = true): void {
-    dirty = loaded && JSON.stringify(draft()) !== baseline;
-    root.querySelectorAll<HTMLElement>('.command-card').forEach(row => {
+    dirty = loaded && draftKey() !== baseline;
+    find('[data-limits]').classList.toggle('is-dirty',baselineLimits!==JSON.stringify(limitDraft()));
+    root.querySelectorAll<HTMLElement>('[data-list] .command-card').forEach(row => {
       row.classList.toggle('is-dirty', originals.get(row) !== JSON.stringify(rowDraft(row)));
     });
     document.querySelector('[data-page="Commands"]')?.setAttribute('data-unsaved', String(dirty));
-    if (announce) status(dirty ? 'Onopgeslagen wijzigingen. Sla op om ze actief te maken.' : 'Geen onopgeslagen wijzigingen.', dirty ? 'warning' : 'info');
+    if (announce) {
+      status(dirty ? 'Onopgeslagen wijzigingen. Sla op om ze actief te maken.' : 'Geen onopgeslagen wijzigingen.', dirty ? 'warning' : 'info');
+      if(find('[data-result]').textContent)find('[data-result]').textContent='Voorbeeld verouderd door je wijzigingen. Klik op Antwoord bekijken.';
+    }
     lockForm(loading);
   }
   function focusChanges(): void {
     const first = root.querySelector<HTMLElement>('.is-dirty') || find('[data-status]');
     first.scrollIntoView({block:'center',behavior:'smooth'});
-    (first.querySelector<HTMLElement>('input,textarea') || first).focus({preventScroll:true});
+    (first.querySelector<HTMLElement>('input,textarea,select') || first).focus({preventScroll:true});
   }
   function remoteChanged(next: number): void {
     if (!root.isConnected || !Number.isSafeInteger(next)) return;
@@ -149,10 +181,14 @@ export function mountCommands(): void {
     loaded = true;
     botEnabled = settings.botEnabled;
     revision = settings.revision;
+    const limits=settings.limits||defaultCommandLimits;
+    find<HTMLInputElement>('[data-interval]').value=String(limits.intervalSeconds);
+    find<HTMLInputElement>('[data-hour]').value=String(limits.maxMessagesPerHour);
+    baselineLimits=JSON.stringify(limitDraft());
     find('[data-list]').replaceChildren();
     for (const command of settings.commands) addRow(command);
-    baseline = JSON.stringify(draft());
-    root.querySelectorAll<HTMLElement>('.command-card').forEach(row => originals.set(row,JSON.stringify(rowDraft(row))));
+    baseline = draftKey();
+    root.querySelectorAll<HTMLElement>('[data-list] .command-card').forEach(row => originals.set(row,JSON.stringify(rowDraft(row))));
     track(false);
     find('[data-external]').hidden = remoteRevision <= revision;
     if (remoteRevision > revision) remoteChanged(remoteRevision);
@@ -180,7 +216,7 @@ export function mountCommands(): void {
   find('[data-jump]').onclick = focusChanges;
   find('[data-add]').onclick = () => {
     if (draft().length >= 50) { status('Maximaal 50 commando’s toegestaan.','error'); return; }
-    addRow({ trigger: '', responses: [''], cooldownSeconds: 60, enabled: true });
+    addRow({ trigger: '', responses: [''], cooldownSeconds: 60, enabled: true, audience:'moderators' });
     track();
     const fields = root.querySelectorAll<HTMLInputElement>('[data-trigger]');
     fields[fields.length - 1]?.focus();
@@ -191,12 +227,21 @@ export function mountCommands(): void {
     track();
   });
   find('[data-list]').addEventListener('click', event => {
+    const tag=event.target instanceof Element?event.target.closest<HTMLButtonElement>('[data-tag]'):null;
+    if(tag){
+      const textarea=tag.closest('fieldset')!.querySelector<HTMLTextAreaElement>('textarea')!;
+      textarea.setRangeText(`{${tag.dataset.tag}}`,textarea.selectionStart,textarea.selectionEnd,'end');
+      textarea.focus();textarea.dispatchEvent(new Event('input',{bubbles:true}));return;
+    }
     const button = event.target instanceof Element ? event.target.closest('[data-remove]') : null;
     if (button) { button.closest('fieldset')?.remove(); track(); }
   });
+  find('[data-limits]').addEventListener('input',()=>{
+    root.querySelectorAll<HTMLElement>('.command-card:not([data-limits])').forEach(updatePlan);track();
+  });
   function validateFields(): boolean {
     const names = new Set<string>();
-    const rows = [...root.querySelectorAll<HTMLElement>('.command-card')];
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-list] .command-card')];
     rows.forEach(row => {
       const trigger = row.querySelector<HTMLInputElement>('[data-trigger]')!;
       const aliases = row.querySelector<HTMLInputElement>('[data-aliases]')!;
@@ -236,7 +281,7 @@ export function mountCommands(): void {
     try {
       const response = await fetch('/api/commands', { method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'faynominaal' },
-        signal:AbortSignal.timeout(10_000), body: JSON.stringify({ revision, commands }) });
+        signal:AbortSignal.timeout(10_000), body: JSON.stringify({ revision, commands, limits:limitDraft() }) });
       const result = await response.json() as CommandSettings & { error?: string; currentRevision?: number };
       if (result.capabilities) currentAccess?.(result.capabilities);
       if (!response.ok) {
@@ -259,9 +304,11 @@ export function mountCommands(): void {
     event.preventDefault();
     const trigger = find<HTMLInputElement>('[data-test]').value.trim().toLowerCase();
     const command = draft().find(item => item.trigger === trigger || item.aliases?.includes(trigger));
-    const plan = command && planResponses(command.responses);
+    const username=find<HTMLInputElement>('[data-preview-user]').value;
+    const rendered=command&&renderCommandTemplates(command.responses,{username,displayname:username,channel:state.username,command:command.trigger});
+    const plan = rendered && planResponses(rendered.responses,limitDraft());
     find('[data-result]').textContent = !command ? 'Geen passend commando gevonden.' : !command.enabled
-      ? 'Dit commando is uitgeschakeld.' : plan!.error || `${plan!.messages.map((text, index) => `${index + 1}/${plan!.messages.length}: ${text}`).join('\n\n')}\n\nMinimaal ${plan!.durationSeconds} seconden; cooldown ${Math.max(commandPolicy.minCooldownSeconds, command.cooldownSeconds)} seconden.`;
+      ? 'Dit commando is uitgeschakeld.' : rendered!.error || plan!.error || `${plan!.messages.map((text, index) => `${index + 1}/${plan!.messages.length}: ${text}`).join('\n\n')}\n\nMinimaal ${plan!.durationSeconds} seconden; commandcooldown ${Math.max(commandPolicy.minCooldownSeconds, command.cooldownSeconds)} seconden.\nToegang: ${audienceNames[command.audience||'everyone']} (preview controleert geen echte kijkerrol).`;
   };
   void load();
 }

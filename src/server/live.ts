@@ -4,7 +4,8 @@ import type { Connector, ConnectorLoader, TikTokMessage } from './types.ts';
 import type { LiveEvent, Phase } from '../shared/events.ts';
 import { loadConnector } from './connector.ts';
 import { defaultCommands } from './command-defaults.ts';
-import type { CommandDefinition } from '../shared/commands.ts';
+import type { CommandDefinition, CommandLimits } from '../shared/commands.ts';
+import { defaultCommandLimits } from '../shared/command-policy.ts';
 import { connectionErrorMessage, errorRecords } from './connection-errors.ts';
 import type { CommandSender } from './chat-access.ts';
 import { createCommandLimiter } from './command-limiter.ts';
@@ -15,12 +16,13 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
   canSend: () => boolean = () => false, send?: CommandSender,
   schedule: (callback: () => void, ms: number) => () => void = (callback, ms) => {
     const timer = setTimeout(callback, ms); timer.unref(); return () => clearTimeout(timer);
-  }) {
+  }, getLimits: () => CommandLimits = () => defaultCommandLimits) {
   let connection: Connector | undefined;
   let pending = false;
   let generation = 0;
   let status = 'Niet verbonden';
-  const limiter = createCommandLimiter();
+  const limiter = createCommandLimiter(Date.now,getLimits);
+  let activeCommands: AbortController | undefined;
   let wanted = false;
   let retries = 0;
   let cancelRetry: (() => void) | undefined;
@@ -30,6 +32,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
   let retryBlocked = false;
   const report = (text: string, phase?: Phase): void => { status = text; broadcast({ type: 'status', text, phase }); };
   async function stop() {
+    activeCommands?.abort();
     wanted = false;
     retryRequested = false;
     isConnected = false;
@@ -63,6 +66,8 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
     pending = true;
     report(`Verbinding maken met @${config.username}…`, 'connecting');
     let current: Connector | undefined;
+    const commandAbort=new AbortController();
+    activeCommands=commandAbort;
     try {
       if (config.chatTransport === 'direct' && !send) throw new Error('Directe verzendservice ontbreekt.');
       const { TikTokLiveConnection } = await load();
@@ -73,7 +78,8 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       const active = () => connected && connection === current && attempt === generation;
       const command = createCommands({
         send: text => send ? send(text, current!, active) : current!.sendMessage(text), active: () => active() && canSend(),
-        botUsername: config.botUsername, report: text => broadcast({ type: 'bot', text }), getCommands, limiter
+        botUsername: config.botUsername, channel:config.username, report: text => broadcast({ type: 'bot', text }),
+        getCommands, getLimits, limiter, signal:commandAbort.signal
       });
       current.on('chat', (data: TikTokMessage) => {
         if (!active()) return;
@@ -85,6 +91,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       current.on('error', (error: unknown) => {
         if (error && typeof error === 'object' && 'info' in error && error.info === 'Failed to send message.') return;
         if (connection === current) {
+          commandAbort.abort();
           connected = isConnected = false;
           connection = undefined;
           report(connectionErrorMessage(error), 'error');
@@ -93,6 +100,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
         }
       });
       current.on('disconnected', () => {
+        commandAbort.abort();
         connected = false;
         if (connection === current) { isConnected = false; connection = undefined; report('Verbinding verbroken.', 'disconnected'); retry(); }
       });
@@ -104,6 +112,7 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       cancelStable = schedule(() => { retries = 0; cancelStable = undefined; }, 60_000);
       report(`LIVE verbonden met @${config.username}`, 'connected');
     } catch (error) {
+      commandAbort.abort();
       if (connection === current) connection = undefined;
       try { await current?.disconnect(); } catch {}
       if (attempt === generation) { isConnected = false; report(connectionErrorMessage(error), 'error'); retry(error); }

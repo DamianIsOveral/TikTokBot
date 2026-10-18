@@ -98,7 +98,8 @@ try {
   inside(`import { loadCommandStore } from '/app/src/server/command-store.ts';
     import { loadAccessStore } from '/app/src/server/auth/access-store.ts';
     const commands = await loadCommandStore('/app/data/commands.json');
-    await commands.save({ revision: commands.snapshot().revision, commands: [] });
+    await commands.save({ revision: commands.snapshot().revision, limits:{intervalSeconds:45,maxMessagesPerHour:30},
+      commands: [{trigger:'!ci',aliases:['!check'],responses:['Hallo {username}'],enabled:true,cooldownSeconds:60,audience:'moderators'}] });
     const access = await loadAccessStore('/app/data/access.json', ['${adminId}']);
     await access.save({ revision: access.snapshot().revision, users: [
       { id: '${adminId}', role: 'admin' }, { id: '${memberId}', role: 'member' }] });
@@ -113,7 +114,9 @@ try {
     import { loadCommandStore } from '/app/src/server/command-store.ts';
     import { loadAccessStore } from '/app/src/server/auth/access-store.ts';
     const commands = await loadCommandStore('/app/data/commands.json');
-    assert.equal(commands.snapshot().revision, 1); assert.deepEqual(commands.list(), []);
+    assert.equal(commands.snapshot().revision, 1);
+    assert.deepEqual(commands.limits(),{intervalSeconds:45,maxMessagesPerHour:30});
+    assert.deepEqual(commands.list(),[{trigger:'!ci',aliases:['!check'],responses:['Hallo {username}'],enabled:true,cooldownSeconds:60,audience:'moderators'}]);
     const access = await loadAccessStore('/app/data/access.json', ['${adminId}']);
     assert.equal(access.snapshot().revision, 1); assert.equal(access.role('${memberId}'), 'member');
     const {loadAuditStore} = await import('/app/src/server/moderation-audit.ts');

@@ -129,10 +129,15 @@ test('commands-API beschermt writes en geeft validatiefouten en revisieconflicte
   assert.equal((await post(initial, { Origin: 'https://evil.example' })).status, 403);
   assert.equal((await post(initial, { 'Content-Type': 'text/plain' })).status, 415);
   assert.equal((await post({ revision: 0, commands: [{ ...command(), responses: [] }] })).status, 400);
-  const saved = await post({ revision: 0, commands: [command()] });
+  const limits={intervalSeconds:45,maxMessagesPerHour:30};
+  const saved = await post({ revision: 0, commands: [{...command(),audience:'moderators',responses:['Hallo {username}']}],limits });
   assert.equal(saved.status, 200);
   assert.equal((await saved.json()).revision, 1);
   assert.equal((await post(initial)).status, 409);
   assert.equal((await post({ blob: 'x'.repeat(130 * 1024) })).status, 413);
-  assert.equal((await (await fetch(url)).json()).commands[0].trigger, '!test');
+  const current=await (await fetch(url)).json();
+  assert.equal(current.commands[0].trigger, '!test');
+  assert.equal(current.commands[0].audience,'moderators');
+  assert.deepEqual(current.commands[0].responses,['Hallo {username}']);
+  assert.deepEqual(current.limits,limits);
 });

@@ -1,7 +1,9 @@
-export const commandPolicy = { messageLength: 200, maxMessages: 6, maxCharacters: 1200,
-  intervalMs: 3000, batchPauseMs: 10_000, minCooldownSeconds: 30, userCooldownMs: 30_000, messagesPerMinute: 10 } as const;
+import type { CommandLimits } from './commands.js';
+export const defaultCommandLimits: Readonly<CommandLimits> = {intervalSeconds:30,maxMessagesPerHour:20};
+export const commandPolicy = { messageLength: 150, maxMessages: 6, maxCharacters: 1200,
+  batchPauseMs: 10_000, minCooldownSeconds: 30, userCooldownMs: 30_000, messagesPerMinute: 10 } as const;
 
-export function planResponses(responses: readonly string[]) {
+export function planResponses(responses: readonly string[], limits: CommandLimits = defaultCommandLimits) {
   const messages: string[] = [];
   let error = '';
   const characters = responses.reduce((sum, line) => sum + line.length, 0);
@@ -13,7 +15,7 @@ export function planResponses(responses: readonly string[]) {
     let current = '';
     for (const word of source.trim().split(/\s+/u)) {
       if (word.length > commandPolicy.messageLength && /^https?:\/\//i.test(word)) {
-        error = 'Een link is langer dan 200 tekens; gebruik een kortere link.'; break;
+        error = `Een link is langer dan ${commandPolicy.messageLength} tekens; gebruik een kortere link.`; break;
       }
       if (word.length <= commandPolicy.messageLength) {
         if (current && current.length + 1 + word.length > commandPolicy.messageLength) { messages.push(current); current = ''; }
@@ -31,5 +33,5 @@ export function planResponses(responses: readonly string[]) {
     if (messages.length > commandPolicy.maxMessages) { error = `Dit antwoord heeft meer dan ${commandPolicy.maxMessages} chatberichten nodig. Kort het in.`; break; }
   }
   return { messages: error ? [] : messages, error, characters,
-    durationSeconds: Math.max(0, messages.length - 1) * commandPolicy.intervalMs / 1000 };
+    durationSeconds: Math.max(0, messages.length - 1) * limits.intervalSeconds };
 }
