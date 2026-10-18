@@ -15,6 +15,8 @@ export interface StatusEvent {
 export interface IncomingChat {
   type: 'chat';
   user: string;
+  displayName?: string;
+  avatarUrl?: string;
   text: string;
   userId?: string;
   secUid?: string;
@@ -23,6 +25,7 @@ export interface IncomingChat {
 }
 
 export interface BotEvent { type: 'bot'; text: string }
+export interface ViewerCountEvent { type: 'viewers'; count: number }
 export interface CapabilityEvent { type: 'capabilities'; value: ChatCapabilities }
 export interface CommandsChangedEvent { type: 'commands-changed'; revision: number }
 export interface FiltersChangedEvent { type: 'filters-changed'; value: FilterDocument }
@@ -38,6 +41,8 @@ export interface IncomingActivity {
   type: 'activity';
   kind: ActivityKind;
   user: string;
+  displayName?: string;
+  avatarUrl?: string;
   gift?: string;
   count?: number;
 }
@@ -50,13 +55,14 @@ export interface Snapshot {
   text: string;
   messages: ChatEvent[];
   activity?: ActivityEvent[];
+  viewerCount?: number;
   filters?: FilterDocument;
   moderation?: ModerationFeedbackSnapshot;
   botStatus?: string;
   capabilities?: ChatCapabilities;
 }
 
-export type LiveEvent = StatusEvent | IncomingChat | IncomingActivity | BotEvent | CapabilityEvent;
-export type ServerEvent = StatusEvent | ChatEvent | ActivityEvent | Snapshot | BotEvent | CapabilityEvent | CommandsChangedEvent | FiltersChangedEvent | ModerationChangedEvent;
+export type LiveEvent = StatusEvent | IncomingChat | IncomingActivity | BotEvent | CapabilityEvent | ViewerCountEvent;
+export type ServerEvent = StatusEvent | ChatEvent | ActivityEvent | Snapshot | BotEvent | CapabilityEvent | ViewerCountEvent | CommandsChangedEvent | FiltersChangedEvent | ModerationChangedEvent;
 export type ClientEvent = ServerEvent | { type: 'transport'; text: string };
 export interface PublicConfig { username: string; botUsername: string; botEnabled: boolean }

@@ -19,6 +19,10 @@ Onder **Toegang** kun je per Discord-ID een opmerking van maximaal 120 tekens be
 
 **Gebruikerskleuren** is een aparte browservoorkeur: dezelfde @naam houdt dezelfde leesbare kleur. **MOD** markeert door TikTok bevestigde moderators; **BOT** blijft het eigen botaccount aanduiden. De navigatie gebruikt vaste icoon- en tekstkolommen.
 
+Chat, beoordelingen en LIVE-activiteit tonen de zichtbare naam van TikTok. Hover over die naam toont de unieke @gebruikersnaam; het berichtmenu toont beide. Zoeken herkent beide namen. Identiteit, commandtags, kleuren en moderatie blijven aan de unieke gebruikersnaam en het gebruikers-ID gekoppeld.
+
+Profielfoto’s komen uit de bestaande LIVE-events en vereisen geen extra profielaanvragen. De browser laadt toegestane HTTPS-afbeeldingen van TikTok-CDN’s met lazy loading en zonder referrer. Ontbrekende of kapotte foto’s vallen terug op een letter. Onder **Weergave → Profielfoto’s tonen** kun je alleen letters kiezen; dan maakt de pagina geen avatarafbeeldingen aan. Kleuren, compact, profielfoto’s en LIVE-activiteit staan voor nieuwe browservoorkeuren standaard aan; bestaande keuzes blijven behouden. **Kijkers** verschijnt pas zodra de LIVE-stream een geldig kijkersaantal levert, zonder extra polling.
+
 ## Samen gebruiken
 
 Dashboardrollen staan los van TikTok-rollen. **Moderator** kan de LIVE bekijken en modereren. **Hoofd-Moderator** kan daarnaast commands en gedeelde filters bewerken en de LIVE-verbinding starten/stoppen. **Beheerder** beheert ook de Discord-toegang, botcookies en het dashboardicoon. Bestaande gebruikers worden Moderator; hun opgeslagen rol `member` blijft compatibel en krijgt geen extra rechten. Alleen een beheerder kan iemand Hoofd-Moderator maken. De server controleert deze rechten bij ieder verzoek; een rolwijziging geldt ook voor bestaande sessies.
@@ -64,6 +68,8 @@ Het moderatielog bewaart Discord-gebruiker, doel, actie, tijd, duur en resultaat
 ## Herstel en credentials
 
 `LIVE_AUTO_RECONNECT=true` herstelt een onderbroken verbinding met maximaal vijf oplopende pogingen. Stop annuleert herstel; authenticatiefouten starten geen lus. `LIVE_AUTO_CONNECT=true` verbindt na starten automatisch; dit staat standaard uit. Dashboardvernieuwing herstelt de gedeelde chat via SSE zonder een tweede TikTok-verbinding.
+
+`LIVE_AUTO_CONNECT` doet een opstartpoging, geen periodieke controle op toekomstige LIVE-sessies. Houd dit uit voor handmatig verbinden. Er is geen achtergrondpoller voor offline kanalen toegevoegd: anonieme controles blijven aan het server-IP gekoppeld en een vast interval garandeert geen bescherming tegen TikTok-blokkades. Alleen het geopende dashboard vernieuwen begint geen nieuwe TikTok-verbinding.
 
 De botidentiteit wordt iedere vijf minuten gecontroleerd. Ontvangen cookieverversingen en vervaldatums worden verwerkt en in direct-modus atomair bewaard in `data/tiktok-session.json` (privébestand, Linux0600). Alleen gewijzigde cookies worden opgeslagen. Geldige opgeslagen waarden overleven een herstart; verwijderingen en expiries blijven bewaard en vallen niet terug op oude `.env`-waarden. De state hoort bij het botaccount en de bootstrapcredentials: wijzig je `.env`/`*_FILE`-cookies, dan begint de app na herstart met die nieuwe waarden. Deel dit sessiebestand en back-ups ervan nooit; het bevat echte logincredentials.
 

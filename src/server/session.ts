@@ -13,14 +13,19 @@ export function createSession(publish: (event: ServerEvent) => void, limit = 500
   let activity: ActivityEvent[] = [];
   let botStatus: string | undefined;
   let capabilities: ChatCapabilities | undefined;
+  let viewerCount: number | undefined;
 
   function receive(event: LiveEvent): void {
-    if (event.type === 'capabilities') {
+    if (event.type === 'viewers') {
+      viewerCount = event.count;
+      publish(event);
+    } else if (event.type === 'capabilities') {
       capabilities = { ...event.value };
       publish(event);
     } else if (event.type === 'status') {
       status = event.text;
       phase = event.phase || phase;
+      if (event.phase && event.phase !== 'connected') viewerCount = undefined;
       if (event.phase === 'connecting') {
         mode = 'live';
         messages = [];
@@ -50,7 +55,7 @@ export function createSession(publish: (event: ServerEvent) => void, limit = 500
       messages: messages.map(message => ({ ...message })), activity: activity.map(item => ({ ...item })),
       ...(getFilters ? { filters: getFilters() } : {}),
       ...(getModeration ? { moderation: getModeration() } : {}),
-      botStatus, capabilities: capabilities && { ...capabilities } };
+      botStatus, ...(viewerCount !== undefined ? { viewerCount } : {}), capabilities: capabilities && { ...capabilities } };
   }
 
   return { receive, snapshot };

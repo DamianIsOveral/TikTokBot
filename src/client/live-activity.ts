@@ -1,5 +1,6 @@
 import type { ActivityEvent, ActivityKind } from '../shared/events.js';
 import { displayTime, element, toast } from './dom.js';
+import {displayName, avatarHTML} from './user-identity.js';
 
 const labels = { join: 'Binnenkomst', gift: 'Cadeau', follow: 'Volger', share: 'Gedeeld' };
 const icons = { join: '↪', gift: '◇', follow: '+', share: '↗' };
@@ -15,12 +16,13 @@ function render(): void {
     const row = document.createElement('li');
     row.className = `live-activity-row live-activity-${item.kind}`;
     const icon = document.createElement('span');
-    icon.className = 'live-activity-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = icons[item.kind];
+    icon.className = 'avatar user-avatar live-activity-avatar'; icon.setAttribute('aria-hidden', 'true'); icon.innerHTML = avatarHTML(item);
     const content = document.createElement('span');
-    const label = document.createElement('strong'); label.textContent = labels[item.kind];
-    const description = item.kind === 'gift' ? `${item.user} · ${item.gift || 'Cadeau'} ×${item.count || 1}`
-      : `${item.user} ${item.kind === 'join' ? 'is binnengekomen' : item.kind === 'follow' ? 'volgt de LIVE' : 'heeft de LIVE gedeeld'}`;
-    content.append(label, document.createElement('br'), document.createTextNode(description));
+    const label = document.createElement('strong'); label.textContent = `${icons[item.kind]} ${labels[item.kind]}`;
+    const name = document.createElement('span'); name.textContent = displayName(item); name.title = `@${item.user}`;
+    const description = item.kind === 'gift' ? ` · ${item.gift || 'Cadeau'} ×${item.count || 1}`
+      : ` ${item.kind === 'join' ? 'is binnengekomen' : item.kind === 'follow' ? 'volgt de LIVE' : 'heeft de LIVE gedeeld'}`;
+    content.append(label, document.createElement('br'), name, document.createTextNode(description));
     const time = document.createElement('time'); time.dateTime = item.time; time.textContent = displayTime(item.time);
     row.append(icon, content, time);
     return row;
@@ -68,7 +70,8 @@ export function initializeLiveActivity(): void {
     try { localStorage.setItem('fay-live-activity-kinds', JSON.stringify(enabled)); }
     catch { toast('De activiteitselectie is aangepast, maar kon niet worden bewaard.'); }
   };
-  try { toggle.checked = localStorage.getItem('fay-live-activity') === 'true'; } catch {}
+  toggle.checked = true;
+  try { const saved=localStorage.getItem('fay-live-activity'); if(saved==='true'||saved==='false')toggle.checked=saved==='true'; } catch {}
   const apply = () => { panel.hidden = !toggle.checked; toggle.setAttribute('aria-expanded', String(toggle.checked)); };
   toggle.setAttribute('aria-controls', panel.id);
   apply();
@@ -80,6 +83,7 @@ export function initializeLiveActivity(): void {
   const hide = document.querySelector<HTMLButtonElement>('#activity-hide');
   if (hide) hide.onclick = () => { toggle.checked = false; toggle.dispatchEvent(new Event('change')); };
   initialized = true;
+  document.addEventListener('avatar-preference-changed', render);
   render();
 }
 

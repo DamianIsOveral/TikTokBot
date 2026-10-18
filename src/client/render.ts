@@ -6,8 +6,8 @@ import { renderPage } from './pages.js';
 import { moderationDisabledReason } from '../shared/moderation-policy.js';
 import {usernameColor} from '../shared/username-color.js';
 import {moderationBadges, moderationEntries} from './moderation-feedback.js';
+import {displayName, avatarHTML} from './user-identity.js';
 
-function avatar(message: Message): string { return escapeHTML(message.user[0]?.toUpperCase() || '?'); }
 function actionButtons(message: Message): string {
   const mute = moderationDisabledReason(state, message, 'mute');
   const ban = moderationDisabledReason(state, message, 'ban');
@@ -23,12 +23,12 @@ function actionButtons(message: Message): string {
 
 export function render(): void {
   const query = element<HTMLInputElement>('#search').value.toLowerCase();
-  let rows = state.messages.filter(message => `${message.user} ${message.text}`.toLowerCase().includes(query));
+  let rows = state.messages.filter(message => `${message.user} ${message.displayName || ''} ${message.text}`.toLowerCase().includes(query));
   if (element<HTMLSelectElement>('#sort').value === 'new') rows = rows.slice().reverse();
   element('#chat').innerHTML = rows.map(message => {
     const flagged = !message.resolved && (message.manualReview || automaticCategory(message, state.settings));
     return `<div data-message="${message.id}" class="row ${flagged ? 'flagged' : ''}"><time>${escapeHTML(message.time)}</time>
-      <div class="avatar">${avatar(message)}</div><strong class="user-color-${usernameColor(message.user)}">${escapeHTML(message.user)}${message.isBot?'<small class="bot-label">BOT</small>':''}${message.isModerator?'<small class="mod-label">MOD</small>':''}${flagged?'<small class="review-label" title="Gemarkeerd voor beoordeling" aria-label="Gemarkeerd voor beoordeling">!</small>':''}</strong>
+      <div class="avatar user-avatar">${avatarHTML(message)}</div><strong title="@${escapeHTML(message.user)}" class="user-color-${usernameColor(message.user)}">${escapeHTML(displayName(message))}${message.isBot?'<small class="bot-label">BOT</small>':''}${message.isModerator?'<small class="mod-label">MOD</small>':''}${flagged?'<small class="review-label" title="Gemarkeerd voor beoordeling" aria-label="Gemarkeerd voor beoordeling">!</small>':''}</strong>
       <p>${escapeHTML(message.text)}<span class="moderation-feedback" data-moderation-user="${escapeHTML(message.userId || '')}">${moderationBadges(message.userId)}</span></p><button class="review-message" data-menu="${message.id}"
       aria-label="Acties voor @${escapeHTML(message.user)}" aria-haspopup="menu" aria-controls="message-menu"
       aria-expanded="${state.menuMessageId === message.id}" title="Berichtacties">⋯</button></div>`;
@@ -39,8 +39,8 @@ export function render(): void {
   element('#count').textContent = element('#badge').textContent = String(items.length);
   element('#reviews').innerHTML = items
     .filter(message => state.filter === 'Alle' || automaticCategory(message, state.settings) === state.filter)
-    .reverse().map(message => `<div class="card"><div class="cardtop"><div class="avatar">${avatar(message)}</div>
-      <div class="cardbody"><time>${escapeHTML(message.time)}</time><strong class="user-color-${usernameColor(message.user)}">@${escapeHTML(message.user)}${message.isModerator?'<small class="mod-label">MOD</small>':''}</strong>
+    .reverse().map(message => `<div class="card"><div class="cardtop"><div class="avatar user-avatar">${avatarHTML(message)}</div>
+      <div class="cardbody"><time>${escapeHTML(message.time)}</time><strong title="@${escapeHTML(message.user)}" class="user-color-${usernameColor(message.user)}">${escapeHTML(displayName(message))}${message.isModerator?'<small class="mod-label">MOD</small>':''}</strong>
       <p>${escapeHTML(message.text)}</p><span class="tag">${escapeHTML(automaticCategory(message, state.settings) || 'Handmatig')}</span></div></div>
       ${actionButtons(message)}</div>`).join('')
     || '<div class="empty">✓ Geen berichten om te beoordelen.</div>';

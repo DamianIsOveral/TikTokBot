@@ -6,6 +6,7 @@ export interface TikTokMessage {
   uniqueId?: string;
   userIdentity?: { isAnchor?: boolean; isModeratorOfAnchor?: boolean; isSubscriberOfAnchor?: boolean };
   user?: { uniqueId?: string; displayId?: string; nickname?: string; id?: string; idStr?: string; secUid?: string;
+    avatarThumb?: { urlList?: string[] }; profilePicture?: { url?: string[] };
     userAttr?: { isAdmin?: boolean }; badgeList?: {sceneType?: number; image?: {urlList?:string[]}; combine?: {icon?:{urlList?:string[]}}}[] };
 }
 
@@ -16,6 +17,7 @@ export interface Connector {
   readonly roomId?: string;
   on(event: 'chat', listener: (message: TikTokMessage) => void): this;
   on(event: ActivitySourceEvent, listener: (message: unknown) => void): this;
+  on(event: 'roomUser', listener: (message: unknown) => void): this;
   on(event: 'error', listener: (error: unknown) => void): this;
   on(event: 'disconnected', listener: () => void): this;
   connect(): Promise<unknown>;

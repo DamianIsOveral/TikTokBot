@@ -18,7 +18,7 @@ test('SDK activity is normalized to bounded public fields without raw payloads o
   assert.equal(normalize('member', { ...raw, action: -1 }), undefined);
   assert.equal(normalize('gift', null), undefined);
   assert.equal(normalize('gift', false), undefined);
-  assert.deepEqual(normalize('member', { user: { nickname: 'Kijker' } }), { type: 'activity', kind: 'join', user: 'Kijker' });
+  assert.deepEqual(normalize('member', { user: { nickname: 'Kijker' } }), { type: 'activity', kind: 'join', user: 'Kijker', displayName: 'Kijker' });
   const gift = normalize('gift', { ...raw, user: { uniqueId: 'a'.repeat(100) },
     gift: { name: 'b'.repeat(100) }, repeatCount: Number.MAX_SAFE_INTEGER });
   assert.equal(gift?.user.length, 80);
@@ -103,7 +103,7 @@ test('only the active connector emits activity and activity cannot trigger bot c
   assert.equal(sends, 0);
 });
 
-test('activity panel defaults hidden, persists its toggle and renders bounded text safely newest first', async t => {
+test('activity panel defaults visible, preserves personal settings and filters bounded events safely', async t => {
   class Node {
     id = ''; className = ''; textContent = ''; hidden = false; checked = false; dateTime = '';
     dataset: Record<string,string> = {};
@@ -127,6 +127,7 @@ test('activity panel defaults hidden, persists its toggle and renders bounded te
   const globals = {
     document: { querySelector: (selector: string) => nodes[selector], createElement: () => new Node(),
       querySelectorAll: () => buttons,
+      body:{classList:{contains:()=>false}},addEventListener:()=>{},
       createTextNode: (text: string) => Object.assign(new Node(), { textContent: text }) },
     localStorage: { getItem: (name: string) => saved.get(name), setItem: (name: string, value: string) => saved.set(name, value) },
     requestAnimationFrame: (callback: () => void) => frames.push(callback), Element:Node
@@ -140,7 +141,7 @@ test('activity panel defaults hidden, persists its toggle and renders bounded te
   const contents = (node: Node): string => node.textContent + node.children.map(contents).join('');
   const flush = () => { for (const frame of frames.splice(0)) frame(); };
   client.initializeLiveActivity();
-  assert.equal(panel.hidden, true);
+  assert.equal(panel.hidden, false);
   assert.match(contents(feed), /Nog geen LIVE-activiteit/);
   toggle.checked = true; toggle.listeners.get('change')!();
   assert.equal(panel.hidden, false);

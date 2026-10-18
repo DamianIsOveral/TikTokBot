@@ -2,6 +2,7 @@ import { state } from './model.js';
 import { escapeHTML, toast } from './dom.js';
 import { moderateMessage, refreshModerationAccess } from './moderation.js';
 import { moderationDisabledReason } from '../shared/moderation-policy.js';
+import {displayName} from './user-identity.js';
 
 export function createMessageActions(onChange: () => void) {
   const menu = document.createElement('div');
@@ -60,7 +61,7 @@ export function createMessageActions(onChange: () => void) {
     const button = (action: string, label: string, reason = '') => `<button role="menuitem" data-menu-action="${action}"
       ${reason ? 'disabled' : ''} title="${escapeHTML(reason)}">${label}</button>`;
     const reasons = [...new Set([muteReason, banReason].filter(Boolean))];
-    menu.innerHTML = `<strong>@${escapeHTML(message.user)}</strong>${!state.liveMode ? '<small>Lokale test · geen TikTok-acties</small>' : ''}
+    menu.innerHTML = `<strong>${escapeHTML(displayName(message))}</strong><small>@${escapeHTML(message.user)}</small>${!state.liveMode ? '<small>Lokale test · geen TikTok-acties</small>' : ''}
       ${view === 'mute'
         ? button('back', '← Terug') + '<span>Demptijd</span>' + [[5, '5 seconden'], [30, '30 seconden'], [60, '1 minuut'], [300, '5 minuten'], [0, 'Gehele LIVE']]
           .map(([duration, label]) => button(`mute:${duration}`, String(label), muteReason)).join('')

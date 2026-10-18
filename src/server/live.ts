@@ -81,6 +81,15 @@ export function createLive(config: AppConfig, broadcast: (event: LiveEvent) => v
       connection = current;
       let connected = false;
       const active = () => connected && connection === current && attempt === generation;
+      current.on('roomUser', data => {
+        if (!active() || !data || typeof data !== 'object' || !('total' in data)) return;
+        const total = data.total;
+        if (typeof total !== 'string' || !/^\d{1,10}$/.test(total)) return;
+        const count = Number(total);
+        if (count > 1_000_000_000) return;
+        lastEventAt = new Date().toISOString();
+        broadcast({ type: 'viewers', count });
+      });
       const activity = createLiveActivity();
       for (const source of ['member', 'gift', 'follow', 'share'] as const) {
         current.on(source, data => {
