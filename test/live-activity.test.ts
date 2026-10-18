@@ -106,6 +106,8 @@ test('only the active connector emits activity and activity cannot trigger bot c
 test('activity panel defaults hidden, persists its toggle and renders bounded text safely newest first', async t => {
   class Node {
     id = ''; className = ''; textContent = ''; hidden = false; checked = false; dateTime = '';
+    dataset: Record<string,string> = {};
+    onclick?: (event: {target:Node}) => void;
     children: Node[] = [];
     attributes = new Map<string, string>();
     listeners = new Map<string, () => void>();
@@ -113,16 +115,21 @@ test('activity panel defaults hidden, persists its toggle and renders bounded te
     replaceChildren(...children: Node[]) { this.children = children; }
     setAttribute(name: string, value: string) { this.attributes.set(name, value); }
     addEventListener(name: string, callback: () => void) { this.listeners.set(name, callback); }
+    closest() { return this.dataset.activityKind ? this : null; }
   }
   const toggle = new Node(); const panel = new Node(); const feed = new Node(); panel.id = 'activity-panel';
-  const nodes: Record<string, Node> = { '#activity-toggle': toggle, '#activity-panel': panel, '#activity-feed': feed };
+  const filters = new Node(); const summary = new Node();
+  const buttons = ['join','gift','follow','share'].map(kind => Object.assign(new Node(),{dataset:{activityKind:kind}}));
+  const nodes: Record<string, Node> = { '#activity-toggle': toggle, '#activity-panel': panel, '#activity-feed': feed,
+    '#activity-filters':filters,'#activity-filter-summary':summary };
   const saved = new Map<string, string>();
   const frames: (() => void)[] = [];
   const globals = {
     document: { querySelector: (selector: string) => nodes[selector], createElement: () => new Node(),
+      querySelectorAll: () => buttons,
       createTextNode: (text: string) => Object.assign(new Node(), { textContent: text }) },
     localStorage: { getItem: (name: string) => saved.get(name), setItem: (name: string, value: string) => saved.set(name, value) },
-    requestAnimationFrame: (callback: () => void) => frames.push(callback)
+    requestAnimationFrame: (callback: () => void) => frames.push(callback), Element:Node
   };
   for (const [key, value] of Object.entries(globals)) {
     const original = Object.getOwnPropertyDescriptor(globalThis, key);
@@ -151,6 +158,28 @@ test('activity panel defaults hidden, persists its toggle and renders bounded te
   client.replaceLiveActivity([{ type: 'activity', kind: 'join', id: 1, user: 'viewer', time: '2026-10-18T10:00:00Z' }]);
   flush(); assert.equal(feed.children.length, 1); assert.match(contents(feed), /Binnenkomst.*viewer is binnengekomen/);
   client.resetLiveActivity(); flush(); assert.match(contents(feed), /Nog geen LIVE-activiteit/);
+  const clickKind = (kind:string) => filters.onclick!({target:buttons.find(button=>button.dataset.activityKind===kind)!});
+  clickKind('gift');
+  assert.equal(buttons[1].attributes.get('aria-pressed'),'false');
+  client.replaceLiveActivity([{type:'activity',kind:'gift',id:1,user:'Hidden gift',time:'2026-10-18T10:00:00Z'},
+    {type:'activity',kind:'join',id:2,user:'Visible join',time:'2026-10-18T10:00:01Z'}]);
+  flush();
+  assert.match(contents(feed),/Visible join/);
+  assert.doesNotMatch(contents(feed),/Hidden gift/);
+  client.receiveLiveActivity({type:'activity',kind:'gift',id:3,user:'New hidden gift',time:'2026-10-18T10:00:02Z'});
+  flush(); assert.doesNotMatch(contents(feed),/New hidden gift/);
+  clickKind('gift'); assert.match(contents(feed),/New hidden gift/);
+  for(const kind of ['join','gift','follow','share'])clickKind(kind);
+  assert.match(contents(feed),/Alle activiteitsoorten zijn verborgen/);
+  assert.match(summary.textContent,/0\/4/);
+  clickKind('join');
+  const fresh = await import(new URL('../dist/browser/client/live-activity.js?preferences',import.meta.url).href);
+  fresh.initializeLiveActivity();
+  assert.equal(buttons[0].attributes.get('aria-pressed'),'true');
+  assert.equal(buttons[1].attributes.get('aria-pressed'),'false');
+  fresh.replaceLiveActivity([{type:'activity',kind:'gift',id:1,user:'Hidden after reload',time:'2026-10-18T10:00:00Z'},
+    {type:'activity',kind:'join',id:2,user:'Join after reload',time:'2026-10-18T10:00:01Z'}]);
+  flush(); assert.match(contents(feed),/Join after reload/); assert.doesNotMatch(contents(feed),/Hidden after reload/);
   toggle.checked = false; toggle.listeners.get('change')!();
   assert.equal(panel.hidden, true); assert.equal(saved.get('fay-live-activity'), 'false');
 });

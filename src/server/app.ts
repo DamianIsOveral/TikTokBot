@@ -28,12 +28,13 @@ import { createFilterStore } from './filter-store.ts';
 import { routeFilters } from './http/filter-routes.ts';
 import { createBrandingStore } from './branding-store.ts';
 import { routeBranding, routeBrandingIcon } from './http/branding-routes.ts';
+import { moderationFeedback } from './moderation-feedback.ts';
 
 export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, commands = createCommandStore(),
   access = createAccessStore(config.discord.adminIds), provider?: DiscordProvider, accountReader?: AccountReader,
   directOptions?: DirectChatOptions, audit: AuditStore = createAuditStore(), filters = createFilterStore(), branding = createBrandingStore()) {
   const events = createEventStream();
-  const session = createSession(events.broadcast, 500, () => filters.snapshot());
+  const session = createSession(events.broadcast, 500, () => filters.snapshot(), () => moderationFeedback(audit, live.roomId));
   if (config.chatTransport === 'direct' && !config.directCredentials) throw new Error('Directe chatconfiguratie ontbreekt.');
   const publish = (value: ReturnType<ChatAccess['snapshot']>) => session.receive({ type: 'capabilities', value });
   const direct = config.chatTransport === 'direct' && config.directCredentials
@@ -50,7 +51,8 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
   const rightsTimer = setInterval(() => { void capabilities.refresh(); }, 60_000);
   rightsTimer.unref();
   const auth = createAuth(config.discord, access, events.revalidate, provider);
-  const routeModeration = createModerationRoutes(config, direct, live, session, audit);
+  const routeModeration = createModerationRoutes(config, direct, live, session, audit,
+    value => events.broadcast({ type: 'moderation-changed', value }));
   const routeCredentials=createCredentialRoutes(config,direct,live);
   const server = http.createServer(async (req, res) => {
     if (!secureRequest(req, res, config)) return;

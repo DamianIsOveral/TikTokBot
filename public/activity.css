@@ -4,6 +4,13 @@
 .live-activity-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .live-activity-heading h3{margin:0;font-size:14px}
 .live-activity-heading button{padding:5px 8px;font-size:11px}
+.activity-filter-options{margin:12px 0;font-size:12px}
+.activity-filter-options summary{cursor:pointer;color:#c1d6e5}
+#activity-filters{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+#activity-filters button{padding:6px 9px;font-size:12px;border-radius:7px}
+#activity-filters button[aria-pressed=true]{border-color:var(--cyan);background:#17323e;color:var(--cyan)}
+#activity-filters button[aria-pressed=false]{border-style:dashed;color:var(--muted)}
+.activity-filter-options small{display:block;color:var(--muted);line-height:1.6}
 #activity-feed {
   list-style:none;
   margin:0;

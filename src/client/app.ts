@@ -19,11 +19,13 @@ import { applyGlobalFilters, initializeGlobalFilters } from './filters.js';
 import { initializeLiveActivity, receiveLiveActivity, replaceLiveActivity, resetLiveActivity } from './live-activity.js';
 import { initializeBranding, refreshBranding } from './branding.js';
 import { initializeLayout } from './layout.js';
+import { applyModerationFeedback, initializeModerationFeedback } from './moderation-feedback.js';
 
 function updateMode(live: boolean): void {
   messageActions.close();
   state.liveMode = live;
   if (!live) resetLiveActivity();
+  if (!live) applyModerationFeedback(undefined);
   element<HTMLButtonElement>('#add').disabled = live;
   element<HTMLButtonElement>('#demo').disabled = !live;
   element('.demo span').textContent = live
@@ -49,7 +51,12 @@ function updateConnection(data: StatusEvent | Snapshot): void {
 }
 
 function onEvent(data: ClientEvent): void {
-  if (data.type === 'filters-changed') {
+  if (data.type === 'moderation-changed') {
+    if (state.liveMode && state.serverConnected && state.phase === 'connected') {
+      applyModerationFeedback(data.value);
+      render();
+    }
+  } else if (data.type === 'filters-changed') {
     applyGlobalFilters(data.value, render);
   } else if (data.type === 'activity') {
     if (state.liveMode && state.serverConnected && state.phase === 'connected') receiveLiveActivity(data);
@@ -62,6 +69,7 @@ function onEvent(data: ClientEvent): void {
   } else if (data.type === 'bot') {
     showBotStatus(data.text);
   } else if (data.type === 'transport') {
+    applyModerationFeedback(undefined);
     resetLiveActivity();
     state.serverConnected = false;
     element('#live-status').textContent = data.text;
@@ -82,9 +90,11 @@ function onEvent(data: ClientEvent): void {
     if (state.liveMode && state.phase === 'connected') {
       for (const message of data.messages) addMessage(message.user, message.text, displayTime(message.time), message);
     } else if (!state.liveMode) loadDemo();
+    applyModerationFeedback(state.liveMode && state.phase === 'connected' ? data.moderation : undefined);
     render();
     if (state.phase === 'connected') void refreshModerationAccess().then(render);
   } else if (data.type === 'status') {
+    if (data.phase !== 'connected') applyModerationFeedback(undefined);
     if (data.phase !== 'connected') resetLiveActivity();
     state.moderation = undefined;
     updateConnection(data);
@@ -183,6 +193,7 @@ document.addEventListener('dashboard-permissions-changed', () => {
 });
 
 if (await requireUser()) {
+  initializeModerationFeedback();
   initializeCommandStatus();
   initializeLiveActivity();
   initializeBranding();

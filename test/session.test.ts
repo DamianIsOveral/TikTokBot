@@ -70,7 +70,9 @@ test('SSE levert bestaande chat na vernieuwen en stuurt nieuwe chat naar beide t
   assert.equal(snapshot.phase, 'connected');
   assert.equal(snapshot.messages[0].text, '<script>tekst</script>');
   const second = await openTab();
-  assert.deepEqual(await second(), snapshot);
+  const secondSnapshot = await second();
+  secondSnapshot.moderation.serverNow = snapshot.moderation.serverNow;
+  assert.deepEqual(secondSnapshot, snapshot);
   await post('connect');
   assert.equal(connections, 1);
   connector.emit('chat', { user: { uniqueId: 'tweede' }, content: 'Nieuw bericht' });
@@ -81,4 +83,13 @@ test('SSE levert bestaande chat na vernieuwen en stuurt nieuwe chat naar beide t
   await post('stop');
   assert.equal((await first()).phase, 'stopped');
   assert.equal((await second()).phase, 'stopped');
+});
+
+test('session reads moderation feedback getter for every reload snapshot', () => {
+  let serverNow = 1;
+  const session = createSession(() => {}, 500, undefined,
+    () => ({ roomId: null, serverNow: serverNow++, entries: [] }));
+  assert.equal(session.snapshot().moderation?.serverNow, 1);
+  assert.equal(session.snapshot().moderation?.serverNow, 2);
+  assert.equal(createSession(() => {}).snapshot().moderation, undefined);
 });

@@ -1,4 +1,4 @@
-import type { ActivityEvent } from '../shared/events.js';
+import type { ActivityEvent, ActivityKind } from '../shared/events.js';
 import { displayTime, element, toast } from './dom.js';
 
 const labels = { join: 'Binnenkomst', gift: 'Cadeau', follow: 'Volger', share: 'Gedeeld' };
@@ -6,11 +6,12 @@ const icons = { join: '↪', gift: '◇', follow: '+', share: '↗' };
 let items: ActivityEvent[] = [];
 let initialized = false;
 let scheduled = false;
+const enabled: Record<ActivityKind, boolean> = {join:true,gift:true,follow:true,share:true};
 
 function render(): void {
   if (!initialized) return;
   const feed = element<HTMLOListElement>('#activity-feed');
-  const rows = items.slice().reverse().map(item => {
+  const rows = items.filter(item => enabled[item.kind]).reverse().map(item => {
     const row = document.createElement('li');
     row.className = `live-activity-row live-activity-${item.kind}`;
     const icon = document.createElement('span');
@@ -26,7 +27,9 @@ function render(): void {
   });
   if (!rows.length) {
     const empty = document.createElement('li'); empty.className = 'live-activity-empty';
-    empty.textContent = 'Nog geen LIVE-activiteit. Binnenkomsten, cadeaus, volgers en gedeelde LIVE’s verschijnen hier.';
+    empty.textContent = !Object.values(enabled).some(Boolean) ? 'Alle activiteitsoorten zijn verborgen. Kies hierboven wat je wilt zien.'
+      : items.length ? 'Geen activiteit voor je selectie in de laatste 100 gebeurtenissen.'
+        : 'Nog geen LIVE-activiteit voor je selectie.';
     rows.push(empty);
   }
   feed.replaceChildren(...rows);
@@ -41,6 +44,30 @@ function scheduleRender(): void {
 export function initializeLiveActivity(): void {
   const toggle = element<HTMLInputElement>('#activity-toggle');
   const panel = element('#activity-panel');
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem('fay-live-activity-kinds') || '{}');
+    if (saved && typeof saved === 'object') for (const kind of Object.keys(enabled) as ActivityKind[]) {
+      const value = (saved as Record<string,unknown>)[kind];
+      if (typeof value === 'boolean') enabled[kind] = value;
+    }
+  } catch {}
+  const updateFilters = () => {
+    document.querySelectorAll<HTMLButtonElement>('[data-activity-kind]').forEach(button => {
+      button.setAttribute('aria-pressed', String(enabled[button.dataset.activityKind as ActivityKind]));
+    });
+    element('#activity-filter-summary').textContent = `Soorten activiteit · ${Object.values(enabled).filter(Boolean).length}/4`;
+  };
+  updateFilters();
+  element('#activity-filters').onclick = event => {
+    const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-activity-kind]') : null;
+    const kind = button?.dataset.activityKind as ActivityKind | undefined;
+    if (!kind || !Object.hasOwn(enabled,kind)) return;
+    enabled[kind] = !enabled[kind];
+    updateFilters();
+    render();
+    try { localStorage.setItem('fay-live-activity-kinds', JSON.stringify(enabled)); }
+    catch { toast('De activiteitselectie is aangepast, maar kon niet worden bewaard.'); }
+  };
   try { toggle.checked = localStorage.getItem('fay-live-activity') === 'true'; } catch {}
   const apply = () => { panel.hidden = !toggle.checked; toggle.setAttribute('aria-expanded', String(toggle.checked)); };
   toggle.setAttribute('aria-controls', panel.id);
