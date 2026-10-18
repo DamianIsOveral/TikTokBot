@@ -23,7 +23,7 @@ export function confirmLeave(): Promise<boolean> {
   pending = new Promise<boolean>(resolve => {
     const dialog = document.createElement('dialog');
     dialog.className = 'unsaved-dialog';
-    dialog.innerHTML = `<h2>Onopgeslagen commands</h2><p>Je wijzigingen zijn nog niet opgeslagen.</p>
+    dialog.innerHTML = `<h2>Onopgeslagen wijzigingen</h2><p>Je wijzigingen zijn nog niet opgeslagen.</p>
       <div><button data-stay autofocus>Terug naar wijzigingen</button>
       <button data-save class="button-primary" ${guard.canSave() ? '' : 'disabled'}>Opslaan en doorgaan</button>
       <button data-discard class="button-danger">Wijzigingen verwerpen</button></div>`;

@@ -1,0 +1,10 @@
+.command-status{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:12px;line-height:1.5;min-width:0}
+.command-status strong{font-size:12px;font-weight:650;color:inherit}
+.command-status>span{overflow-wrap:anywhere;color:var(--muted)}
+.command-status details{margin-left:auto;color:var(--muted)}
+.command-status details[open]{flex-basis:100%;margin-left:0}
+.command-status summary{cursor:pointer;font-size:11px}
+.command-status small{display:block;padding-top:6px;font-size:11px;color:var(--muted)}
+.command-status[data-state="responding"] strong,.command-status[data-state="cooldown"] strong{color:var(--amber)}
+.command-status[data-state="ready"] strong{color:var(--cyan)}
+@media(max-width:640px){.command-status{padding:9px 12px;gap:4px 10px}.command-status strong,.command-status>span{flex-basis:100%}}

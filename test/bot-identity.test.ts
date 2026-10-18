@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {incomingChat} from '../src/server/incoming-chat.ts';
-import {automaticCategory} from '../src/client/filters.ts';
+import {automaticCategory} from '../src/shared/filter-settings.ts';
 import {createSession} from '../src/server/session.ts';
 import {createLive} from '../src/server/live.ts';
 import {readConfig} from '../src/server/config.ts';

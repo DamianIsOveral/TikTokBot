@@ -6,9 +6,14 @@ import { readJson } from './json.ts';
 import type { ChatAccess } from '../chat-access.ts';
 
 export async function routeCommands(req: IncomingMessage, res: ServerResponse, store: CommandStore, botEnabled: boolean,
-  access: ChatAccess, changed: (revision: number) => void = () => {}): Promise<boolean> {
+  access: ChatAccess, changed: (revision: number) => void = () => {}, authorized: () => boolean = () => true): Promise<boolean> {
   if (req.url !== '/api/commands') return false;
   res.setHeader('Content-Type', 'application/json');
+  if (req.method === 'POST' && !authorized()) {
+    req.resume();
+    res.writeHead(403).end(JSON.stringify({ error: 'Alleen hoofd-moderators en beheerders mogen commands aanpassen.' }));
+    return true;
+  }
   const capabilities = await access.refresh();
   if (req.method === 'GET') {
     res.end(JSON.stringify({ ...store.snapshot(), botEnabled, capabilities }));
@@ -17,7 +22,7 @@ export async function routeCommands(req: IncomingMessage, res: ServerResponse, s
       res.writeHead(403).end(JSON.stringify({ error: capabilities.reason, capabilities })); return true;
     }
     try {
-      const saved = await store.save(await readJson(req));
+      const saved = await store.save(await readJson(req), authorized);
       changed(saved.revision);
       res.end(JSON.stringify({ ...saved, botEnabled, capabilities }));
     } catch (error) {

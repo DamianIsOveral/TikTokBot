@@ -27,7 +27,7 @@ export function render(): void {
   element('#chat').innerHTML = rows.map(message => {
     const flagged = !message.resolved && (message.manualReview || automaticCategory(message, state.settings));
     return `<div data-message="${message.id}" class="row ${flagged ? 'flagged' : ''}"><time>${escapeHTML(message.time)}</time>
-      <div class="avatar">${avatar(message)}</div><strong class="user-color-${usernameColor(message.user)}">${escapeHTML(message.user)}${message.isBot?'<small class="bot-label">BOT</small>':''}${message.isModerator?'<small class="mod-label">MOD</small>':''}</strong>
+      <div class="avatar">${avatar(message)}</div><strong class="user-color-${usernameColor(message.user)}">${escapeHTML(message.user)}${message.isBot?'<small class="bot-label">BOT</small>':''}${message.isModerator?'<small class="mod-label">MOD</small>':''}${flagged?'<small class="review-label" title="Gemarkeerd voor beoordeling" aria-label="Gemarkeerd voor beoordeling">!</small>':''}</strong>
       <p>${escapeHTML(message.text)}</p><button class="review-message" data-menu="${message.id}"
       aria-label="Acties voor @${escapeHTML(message.user)}" aria-haspopup="menu" aria-controls="message-menu"
       aria-expanded="${state.menuMessageId === message.id}" title="Berichtacties">⋯</button></div>`;

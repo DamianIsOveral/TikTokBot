@@ -1,0 +1,26 @@
+#sidebar-toggle{align-self:flex-end;min-width:36px;height:34px;padding:0 8px;margin:-12px 0 14px;font-size:24px;line-height:1;color:var(--cyan)}
+@media(min-width:601px){
+  body.sidebar-expanded aside,body.compact.sidebar-expanded aside{width:230px;padding:28px 9px}
+  body.sidebar-expanded .brand{padding:0 18px 24px}
+  body.sidebar-expanded .brand div{display:block}
+  body.sidebar-expanded .sidefoot{display:block;padding:20px}
+  body.sidebar-expanded nav button,body.compact.sidebar-expanded nav button{display:grid;grid-template-columns:24px minmax(0,1fr);justify-content:initial;column-gap:16px;padding:14px 16px}
+  body.sidebar-expanded nav button>span:not(.nav-icon){display:block}
+  body.sidebar-expanded nav button .nav-icon{display:grid}
+  body.sidebar-collapsed aside,body.compact.sidebar-collapsed aside{width:65px;padding:18px 7px}
+  body.sidebar-collapsed .brand{padding:0 6px 22px}
+  body.sidebar-collapsed .brand div,body.sidebar-collapsed .sidefoot,body.sidebar-collapsed nav button>span:not(.nav-icon){display:none}
+  body.sidebar-collapsed nav button,body.compact.sidebar-collapsed nav button{display:flex;justify-content:center;padding:12px 7px;gap:0}
+  body.sidebar-collapsed nav button .nav-icon{display:grid;margin:0}
+  body.sidebar-collapsed #sidebar-toggle{align-self:center;margin:0 0 14px}
+}
+#chat-resize{display:none}
+@media(min-width:1301px){
+  #chatpage{grid-template-columns:minmax(0,var(--chat-share,1.15fr)) 18px minmax(0,var(--review-share,1fr));gap:0}
+  #chat-resize{display:flex;align-items:center;justify-content:center;cursor:col-resize;touch-action:none;border-radius:5px;min-height:44px;outline-offset:-3px}
+  #chat-resize::after{content:'';width:4px;height:48px;border-radius:3px;background:#486073}
+  #chat-resize:hover::after,#chat-resize:focus-visible::after,body.resizing-chat #chat-resize::after{background:var(--cyan)}
+  #chat-resize:focus-visible{outline:2px solid var(--cyan)}
+  body.resizing-chat{cursor:col-resize;user-select:none}
+}
+@media(max-width:600px){#sidebar-toggle{display:none}}

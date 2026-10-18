@@ -1,38 +1,63 @@
-export interface FilterSettings {
-  links: boolean;
-  spam: boolean;
-  swearing: boolean;
-  words: string;
-}
-export type Category = 'Links' | 'Spam' | 'Schelden';
-const defaults: FilterSettings = { links: true, spam: true, swearing: true, words: 'sukkel, idioot' };
+import { defaultFilterSettings, validFilterDocument } from '../shared/filter-settings.js';
+import type { FilterDocument, FilterSettings } from '../shared/filter-settings.js';
+
+export type { Category, FilterDocument, FilterSettings } from '../shared/filter-settings.js';
+export { classify, automaticCategory } from '../shared/filter-settings.js';
+let current: FilterDocument | undefined;
+const activeSettings: FilterSettings = { ...defaultFilterSettings };
+let changed: (() => void) | undefined;
+const listeners = new Set<(document: FilterDocument) => void>();
 
 export function loadSettings(): FilterSettings {
-  try {
-    const saved: unknown = JSON.parse(localStorage.getItem('fay-settings') || '{}');
-    if (!saved || typeof saved !== 'object') return { ...defaults };
-    const value = saved as Record<string, unknown>;
-    return {
-      links: typeof value.links === 'boolean' ? value.links : defaults.links,
-      spam: typeof value.spam === 'boolean' ? value.spam : defaults.spam,
-      swearing: typeof value.swearing === 'boolean' ? value.swearing : defaults.swearing,
-      words: typeof value.words === 'string' ? value.words.slice(0, 4000) : defaults.words
-    };
-  } catch { return { ...defaults }; }
+  return activeSettings;
 }
 
-export function saveSettings(settings: FilterSettings): void {
-  localStorage.setItem('fay-settings', JSON.stringify(settings));
+export function applyGlobalFilters(document: unknown, onChange?: () => void): boolean {
+  if (!validFilterDocument(document) || (current && document.revision <= current.revision)) return false;
+  current = structuredClone(document);
+  Object.assign(activeSettings, document.settings);
+  for (const listener of listeners) listener(structuredClone(document));
+  changed?.();
+  if (onChange && onChange !== changed) onChange();
+  return true;
 }
 
-export function classify(text: string, settings: FilterSettings): Category | null {
-  if (settings.links && /(https?:\/\/|www\.|klik op deze link)/i.test(text)) return 'Links';
-  if (settings.spam && (/(.{4,}?)\1{2,}/i.test(text) || /volg mij.*volg mij/i.test(text))) return 'Spam';
-  const words = settings.words.split(',').map(word => word.trim().toLowerCase()).filter(Boolean);
-  if (settings.swearing && words.some(word => text.toLowerCase().includes(word))) return 'Schelden';
-  return null;
+export async function fetchGlobalFilters(): Promise<FilterDocument> {
+  const response = await fetch('/api/filters', { signal: AbortSignal.timeout(10_000) });
+  if (!response.ok) throw new Error('Filters laden mislukt.');
+  const document: unknown = await response.json();
+  if (!validFilterDocument(document)) throw new Error('Ongeldige filterconfiguratie ontvangen.');
+  applyGlobalFilters(document);
+  return structuredClone(current ?? document);
 }
 
-export function automaticCategory(message:{text:string;isBot?:boolean},settings:FilterSettings):Category|null {
-  return message.isBot===true ? null : classify(message.text,settings);
+export async function initializeGlobalFilters(onChange: () => void): Promise<void> {
+  changed = onChange;
+  await fetchGlobalFilters();
+}
+
+export function subscribeGlobalFilters(listener: (document: FilterDocument) => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export class FilterSaveError extends Error {
+  status: number;
+  constructor(message: string, status: number) { super(message); this.status = status; }
+}
+
+export async function saveSettings(settings: FilterSettings, revision = current?.revision ?? 0): Promise<FilterDocument> {
+  const response = await fetch('/api/filters', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'faynominaal' },
+    signal: AbortSignal.timeout(10_000), body: JSON.stringify({ revision, settings })
+  });
+  const result: unknown = await response.json();
+  if (!response.ok) {
+    const message = result && typeof result === 'object' && 'error' in result && typeof result.error === 'string'
+      ? result.error : 'Opslaan mislukt.';
+    throw new FilterSaveError(message, response.status);
+  }
+  if (!validFilterDocument(result)) throw new Error('Opslaan is niet bevestigd.');
+  applyGlobalFilters(result);
+  return structuredClone(current ?? result);
 }

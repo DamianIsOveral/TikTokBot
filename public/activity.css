@@ -1,0 +1,42 @@
+#activity-panel[hidden] { display:none }
+#activity-panel { min-width:0 }
+.live-activity-panel{border-top:1px solid var(--line);padding-top:12px}
+.live-activity-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.live-activity-heading h3{margin:0;font-size:14px}
+.live-activity-heading button{padding:5px 8px;font-size:11px}
+#activity-feed {
+  list-style:none;
+  margin:0;
+  padding:0;
+  max-height:340px;
+  overflow:auto;
+  overscroll-behavior:contain
+}
+.live-activity-row {
+  display:grid;
+  grid-template-columns:26px minmax(0,1fr) auto;
+  align-items:start;
+  gap:9px;
+  padding:12px 0;
+  border-bottom:1px solid var(--line);
+  overflow-wrap:anywhere;
+  line-height:1.5
+}
+.live-activity-row:last-child { border-bottom:0 }
+.live-activity-row strong { font-size:12px }
+.live-activity-icon {
+  display:grid;
+  place-items:center;
+  width:26px;
+  height:26px;
+  border:1px solid currentColor;
+  border-radius:6px;
+  font-size:18px;
+  font-weight:700
+}
+.live-activity-row time { color:var(--muted); font-size:12px; white-space:nowrap }
+.live-activity-gift .live-activity-icon { color:#f2c76b }
+.live-activity-follow .live-activity-icon { color:#b4a7ff }
+.live-activity-share .live-activity-icon { color:#87d9ef }
+.live-activity-join .live-activity-icon { color:#d0d9e6 }
+.live-activity-empty { padding:12px 0; color:var(--muted); line-height:1.5 }

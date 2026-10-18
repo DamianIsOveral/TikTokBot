@@ -10,10 +10,12 @@ export interface TikTokMessage {
 }
 
 export type ConnectorOptions = NonNullable<ConstructorParameters<typeof TikTokLiveConnection>[1]>;
+export type ActivitySourceEvent = 'member' | 'gift' | 'follow' | 'share';
 
 export interface Connector {
   readonly roomId?: string;
   on(event: 'chat', listener: (message: TikTokMessage) => void): this;
+  on(event: ActivitySourceEvent, listener: (message: unknown) => void): this;
   on(event: 'error', listener: (error: unknown) => void): this;
   on(event: 'disconnected', listener: () => void): this;
   connect(): Promise<unknown>;

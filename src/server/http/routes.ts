@@ -11,6 +11,7 @@ interface Services {
   session: ReturnType<typeof createSession>;
   events: ReturnType<typeof createEventStream>;
   authorizeEvents: () => boolean;
+  authorizeMutations?: () => boolean;
 }
 
 export function routeApi(req: IncomingMessage, res: ServerResponse, services: Services): boolean {
@@ -33,6 +34,7 @@ export function routeApi(req: IncomingMessage, res: ServerResponse, services: Se
   }
   if (req.url === '/api/connect' || req.url === '/api/stop') {
     if (allowMutation(req, res)) {
+      if (services.authorizeMutations && !services.authorizeMutations()) { req.resume(); res.writeHead(403).end(); return true; }
       if (req.url === '/api/connect') void live.connect();
       else void live.stop();
       res.writeHead(202).end();

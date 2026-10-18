@@ -1,4 +1,5 @@
 import type { ChatCapabilities } from './capabilities.js';
+import type { FilterDocument } from './filter-settings.js';
 
 export type Phase = 'idle' | 'connecting' | 'connected' | 'stopped' | 'disconnected' | 'error';
 export type Mode = 'demo' | 'live';
@@ -23,11 +24,22 @@ export interface IncomingChat {
 export interface BotEvent { type: 'bot'; text: string }
 export interface CapabilityEvent { type: 'capabilities'; value: ChatCapabilities }
 export interface CommandsChangedEvent { type: 'commands-changed'; revision: number }
+export interface FiltersChangedEvent { type: 'filters-changed'; value: FilterDocument }
 
 export interface ChatEvent extends IncomingChat {
   id: number;
   time: string;
 }
+
+export type ActivityKind = 'join' | 'gift' | 'follow' | 'share';
+export interface IncomingActivity {
+  type: 'activity';
+  kind: ActivityKind;
+  user: string;
+  gift?: string;
+  count?: number;
+}
+export interface ActivityEvent extends IncomingActivity { id: number; time: string }
 
 export interface Snapshot {
   type: 'snapshot';
@@ -35,11 +47,13 @@ export interface Snapshot {
   phase: Phase;
   text: string;
   messages: ChatEvent[];
+  activity?: ActivityEvent[];
+  filters?: FilterDocument;
   botStatus?: string;
   capabilities?: ChatCapabilities;
 }
 
-export type LiveEvent = StatusEvent | IncomingChat | BotEvent | CapabilityEvent;
-export type ServerEvent = StatusEvent | ChatEvent | Snapshot | BotEvent | CapabilityEvent | CommandsChangedEvent;
+export type LiveEvent = StatusEvent | IncomingChat | IncomingActivity | BotEvent | CapabilityEvent;
+export type ServerEvent = StatusEvent | ChatEvent | ActivityEvent | Snapshot | BotEvent | CapabilityEvent | CommandsChangedEvent | FiltersChangedEvent;
 export type ClientEvent = ServerEvent | { type: 'transport'; text: string };
 export interface PublicConfig { username: string; botUsername: string; botEnabled: boolean }

@@ -5,13 +5,17 @@ import { fileURLToPath } from 'node:url';
 import { loadAccessStore } from './auth/access-store.ts';
 import { loadAuditStore } from './moderation-audit.ts';
 import {loadSessionState} from './tiktok/session-state.ts';
+import { loadFilterStore } from './filter-store.ts';
+import { loadBrandingStore } from './branding-store.ts';
 
 const config = readConfig();
 const commands = await loadCommandStore(fileURLToPath(new URL('../../data/commands.json', import.meta.url)));
 const access = await loadAccessStore(fileURLToPath(new URL('../../data/access.json', import.meta.url)), config.discord.adminIds);
 const audit = await loadAuditStore(fileURLToPath(new URL('../../data/moderation-audit.json', import.meta.url)));
+const filters = await loadFilterStore(fileURLToPath(new URL('../../data/filters.json', import.meta.url)));
+const branding = await loadBrandingStore(fileURLToPath(new URL('../../data/branding.json', import.meta.url)));
 const sessionState=config.directCredentials?await loadSessionState(fileURLToPath(new URL('../../data/tiktok-session.json',import.meta.url)),config.directCredentials):undefined;
-const app = createApp(config, undefined, commands, access, undefined, undefined, sessionState?{sessionState}:undefined, audit);
+const app = createApp(config, undefined, commands, access, undefined, undefined, sessionState?{sessionState}:undefined, audit, filters, branding);
 app.server.listen(config.port, config.host, () => {
   console.log(`Dashboard: ${config.publicOrigin || `http://${config.host === '::1' ? '[::1]' : config.host}:${config.port}`}`);
 });

@@ -1,0 +1,14 @@
+#channel-avatar { position: relative; overflow: hidden; }
+#channel-avatar > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--panel, #151821); }
+.branding-editor { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.branding-editor h3 { margin-top: 0; }
+.branding-content { display: flex; align-items: center; gap: 20px; margin: 20px 0 12px; }
+.branding-preview { width: 84px; height: 84px; flex: 0 0 84px; border-radius: 50%; overflow: hidden; background: var(--panel); border: 1px solid var(--line); }
+.branding-preview img, .branding-preview canvas { width: 100%; height: 100%; object-fit: contain; }
+.branding-controls { min-width: 0; }
+.branding-file { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; font-weight: 600; }
+.branding-file input { max-width: 100%; font: inherit; }
+.branding-help { display: block; margin-top: 8px; font-size: 12px; opacity: .7; }
+.branding-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.branding-editor [role="status"] { min-height: 1.5em; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .branding-content { align-items: flex-start; flex-direction: column; gap: 16px; } }

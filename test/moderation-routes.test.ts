@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import { readConfig } from '../src/server/config.ts';
-import { createTestApp, signIn, authenticatedFetch, ADMIN } from './auth-fixture.ts';
+import { createTestApp, signIn, authenticatedFetch, ADMIN, MEMBER } from './auth-fixture.ts';
+import { createAccessStore } from '../src/server/auth/access-store.ts';
 import { createAuditStore } from '../src/server/moderation-audit.ts';
 import { signingSdkVersion } from '../src/server/tiktok/signing-profile.ts';
 import type { AuditStore } from '../src/shared/moderation.ts';
 import http from 'node:http';
 
-async function fixture(t: { after(fn: () => unknown): void }, audit: AuditStore = createAuditStore()) {
+async function fixture(t: { after(fn: () => unknown): void }, audit: AuditStore = createAuditStore(), moderator = false) {
   const config = readConfig({ TIKTOK_CHAT_TRANSPORT: 'direct', TIKTOK_MODERATION_ENABLED: 'true', EULER_API_KEY: 'PRIVATE_KEY',
     TIKTOK_SESSION_ID: 'PRIVATE_SESSION', TIKTOK_TARGET_IDC: 'test', TIKTOK_MS_TOKEN: 'PRIVATE_TOKEN', TIKTOK_VERIFY_FP: 'verify_PRIVATE' });
   let connection!: Fake;
@@ -21,7 +22,8 @@ async function fixture(t: { after(fn: () => unknown): void }, audit: AuditStore 
     async disconnect() {}
     async sendMessage() { assert.fail('Geen chatbericht in moderatietest.'); }
   }
-  const app = createTestApp(config, async () => ({ TikTokLiveConnection: Fake }), undefined, undefined, undefined, {
+  const access = createAccessStore([ADMIN], undefined, { revision: 0, users: [{ id: MEMBER, role: 'member' }] });
+  const app = createTestApp(config, async () => ({ TikTokLiveConnection: Fake }), undefined, access, undefined, {
     createSigner: async () => async input => ({ signedUrl: input.url + '&X-Dynosaur=x&msToken=PRIVATE_TOKEN&X-Bogus=x&X-Gnarly=x', signMs: 1, rssMiB: 64 }),
     request: async (input, init) => {
       const url = new URL(String(input));
@@ -42,19 +44,31 @@ async function fixture(t: { after(fn: () => unknown): void }, audit: AuditStore 
   config.port = (app.server.address() as AddressInfo).port;
   t.after(() => app.close());
   const base = `http://127.0.0.1:${config.port}`;
-  const cookie = await signIn(config);
+  const cookie = await signIn(config, moderator ? MEMBER : ADMIN);
   const request = authenticatedFetch(cookie);
   const headers = { Origin: base, 'X-Requested-With': 'faynominaal', 'Content-Type': 'application/json' };
   await request(base + '/api/capabilities');
   return { config, app, request, cookie, base, headers, audit, writes: () => writes,
     async connect() {
-      await request(base + '/api/connect', { method: 'POST', headers });
+      const admin = moderator ? authenticatedFetch(await signIn(config)) : request;
+      await admin(base + '/api/connect', { method: 'POST', headers });
       await new Promise(resolve => setImmediate(resolve));
       connection.emit('chat', { content: 'Verdacht bericht', user: { displayId: 'viewer', id:'456', idStr:'', secUid: 'SEC_VIEWER' } });
       const snapshot = await (await request(base + '/api/snapshot')).json();
       return snapshot.messages[0].id as number;
     } };
 }
+
+test('moderators behouden echte moderatieacties zonder beheerrechten', async t => {
+  const f = await fixture(t, createAuditStore(), true);
+  const messageId = await f.connect();
+  const result = await f.request(f.base + '/api/moderation', { method: 'POST', headers: f.headers,
+    body: JSON.stringify({ action: 'mute', messageId, duration: 30 }) });
+  assert.equal(result.status, 200);
+  assert.equal(f.writes(), 1);
+  assert.equal(f.audit.list()[0].actor.id, MEMBER);
+  assert.equal((await f.request(f.base + '/api/stop', { method: 'POST', headers: f.headers })).status, 403);
+});
 
 test('audit en moderatie vereisen Discord; offline audit blijft leesbaar voor toegelaten gebruikers', async t => {
   const f = await fixture(t);

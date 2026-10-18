@@ -24,12 +24,16 @@ import type { AuditStore } from '../shared/moderation.ts';
 import { createModerationRoutes } from './http/moderation-routes.ts';
 import {routeDiagnostics} from './http/diagnostic-routes.ts';
 import {createCredentialRoutes} from './http/credential-routes.ts';
+import { createFilterStore } from './filter-store.ts';
+import { routeFilters } from './http/filter-routes.ts';
+import { createBrandingStore } from './branding-store.ts';
+import { routeBranding, routeBrandingIcon } from './http/branding-routes.ts';
 
 export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, commands = createCommandStore(),
   access = createAccessStore(config.discord.adminIds), provider?: DiscordProvider, accountReader?: AccountReader,
-  directOptions?: DirectChatOptions, audit: AuditStore = createAuditStore()) {
+  directOptions?: DirectChatOptions, audit: AuditStore = createAuditStore(), filters = createFilterStore(), branding = createBrandingStore()) {
   const events = createEventStream();
-  const session = createSession(events.broadcast);
+  const session = createSession(events.broadcast, 500, () => filters.snapshot());
   if (config.chatTransport === 'direct' && !config.directCredentials) throw new Error('Directe chatconfiguratie ontbreekt.');
   const publish = (value: ReturnType<ChatAccess['snapshot']>) => session.receive({ type: 'capabilities', value });
   const direct = config.chatTransport === 'direct' && config.directCredentials
@@ -50,6 +54,7 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
   const routeCredentials=createCredentialRoutes(config,direct,live);
   const server = http.createServer(async (req, res) => {
     if (!secureRequest(req, res, config)) return;
+    if (routeBrandingIcon(req, res, branding, config.username)) return;
     if (req.url === '/health' && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
       res.end('{"ok":true,"app":"faynominaal-live"}'); return;
@@ -68,14 +73,26 @@ export function createApp(config: AppConfig, loadConnector?: ConnectorLoader, co
       await serveAsset(req, res); return;
     }
     if (req.url?.split('?')[0] === '/login') { res.writeHead(302, { Location: '/' }).end(); return; }
+    const canManage = () => {
+      const role = auth.user(req)?.role;
+      return role === 'admin' || role === 'head-moderator';
+    };
+    if (req.method === 'POST' && ['/api/commands', '/api/filters', '/api/connect', '/api/stop', '/api/capabilities'].includes(req.url || '') && !canManage()) {
+      req.resume();
+      res.setHeader('Content-Type', 'application/json');
+      res.writeHead(403).end(JSON.stringify({ error: 'Alleen hoofd-moderators en beheerders mogen deze instellingen aanpassen.' }));
+      return;
+    }
     if (await routeAccess(req, res, access, user, () => { auth.revalidate(); events.disconnect(); })) return;
+    if (await routeFilters(req, res, filters, value => events.broadcast({ type: 'filters-changed', value }), canManage)) return;
+    if (await routeBranding(req, res, branding, user, () => auth.user(req)?.role === 'admin')) return;
     if (await routeModeration(req, res, user, () => !!auth.user(req))) return;
     if(await routeCredentials(req,res,user,()=>auth.user(req)?.role==='admin'))return;
-    if (await routeCapabilities(req, res, capabilities)) return;
+    if (await routeCapabilities(req, res, capabilities, canManage)) return;
     if(routeDiagnostics(req,res,live,capabilities,config.botEnabled,direct))return;
     if (await routeCommands(req, res, commands, config.botEnabled, capabilities,
-      revision => events.broadcast({type:'commands-changed',revision}))) return;
-    if (!routeApi(req, res, { config, live, session, events, authorizeEvents: () => !!auth.user(req) })) await serveAsset(req, res);
+      revision => events.broadcast({type:'commands-changed',revision}), canManage)) return;
+    if (!routeApi(req, res, { config, live, session, events, authorizeEvents: () => !!auth.user(req), authorizeMutations: canManage })) await serveAsset(req, res);
   });
   server.requestTimeout = 10_000;
   server.headersTimeout = 10_000;
