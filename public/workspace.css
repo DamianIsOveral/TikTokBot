@@ -60,8 +60,9 @@ body.compact .commands-editor{max-width:1400px}
 body.compact .command-toolbar{top:-16px;padding:8px 0}
 body.compact .command-card{margin:0;padding:12px;min-width:0}
 body.compact .command-fields{gap:10px}
-body.compact .command-fields label{min-width:120px}
+body.compact .command-fields label{min-width:0}
 body.compact #otherpage label{margin:8px 0}
+body.compact #otherpage .command-fields label{margin:0}
 body.compact textarea{height:72px;margin-top:5px}
 body.compact .commands-editor [data-list]{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,410px),1fr));gap:12px;margin-top:14px}
 body.compact .commands-editor [data-plan]{margin:8px 0;font-size:12px}
