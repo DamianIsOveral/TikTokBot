@@ -137,4 +137,3 @@ try {
   if (volumeCreated) { try { docker(['volume', 'rm', volume]); } catch { /* Alleen dit testvolume. */ } }
   if (networkCreated) { try { docker(['network', 'rm', network]); } catch { /* Alleen dit testnetwerk. */ } }
 }
-
