@@ -1,8 +1,10 @@
 import type { Mode, Phase, ChatEvent, ActivityEvent, LiveEvent, ServerEvent, Snapshot } from '../shared/events.ts';
 import type { ChatCapabilities } from '../shared/capabilities.ts';
 import type { FilterDocument } from '../shared/filter-settings.ts';
+import type { ModerationFeedbackSnapshot } from '../shared/moderation-feedback.ts';
 
-export function createSession(publish: (event: ServerEvent) => void, limit = 500, getFilters?: () => FilterDocument) {
+export function createSession(publish: (event: ServerEvent) => void, limit = 500, getFilters?: () => FilterDocument,
+  getModeration?: () => ModerationFeedbackSnapshot) {
   let mode: Mode = 'live';
   let status = 'Niet verbonden';
   let phase: Phase = 'idle';
@@ -47,6 +49,7 @@ export function createSession(publish: (event: ServerEvent) => void, limit = 500
     return { type: 'snapshot', mode, phase, text: status,
       messages: messages.map(message => ({ ...message })), activity: activity.map(item => ({ ...item })),
       ...(getFilters ? { filters: getFilters() } : {}),
+      ...(getModeration ? { moderation: getModeration() } : {}),
       botStatus, capabilities: capabilities && { ...capabilities } };
   }
 

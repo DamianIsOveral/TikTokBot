@@ -1,6 +1,8 @@
 import { element, escapeHTML, toast } from './dom.js';
 import { state } from './model.js';
 import type { AuditEntry } from '../shared/moderation.js';
+import type { ModerationFeedbackSnapshot } from '../shared/moderation-feedback.js';
+import { activeDashboardMutes, applyModerationFeedback, moderationBadges, moderationGeneration, subscribeModerationFeedback } from './moderation-feedback.js';
 
 interface Access { connected: boolean; enabled: boolean; mute: boolean; ban: boolean; reason: string }
 interface List { users: { userId: string; name: string }[]; hasMore: boolean; cursor: string }
@@ -14,11 +16,15 @@ export async function refreshModerationAccess(): Promise<void> {
     return;
   }
   if (pendingAccess) return pendingAccess;
+  const generation = moderationGeneration();
   pendingAccess = (async () => { try {
     const response = await fetch('/api/moderation');
-    const access = await response.json() as Access & { error?: string };
+    const access = await response.json() as Access & { error?: string; moderation?: ModerationFeedbackSnapshot };
     if (!response.ok) throw new Error(access.error || 'Moderatierechten konden niet worden gecontroleerd.');
-    if (state.liveMode && state.serverConnected && state.phase === 'connected') state.moderation = access;
+    if (state.liveMode && state.serverConnected && state.phase === 'connected') {
+      state.moderation = access;
+      if (access.moderation) applyModerationFeedback(access.moderation, generation);
+    }
   } catch (error) { state.moderation = { connected: false, enabled: false, mute: false, ban: false,
     reason: error instanceof Error && error.message.length < 300 && !/fetch|network|json/i.test(error.message)
       ? error.message : 'Moderatierechten konden niet worden gecontroleerd.' }; }
@@ -28,16 +34,19 @@ export async function refreshModerationAccess(): Promise<void> {
 
 async function action(input: Record<string, unknown>): Promise<void> {
   if (!state.liveMode || !state.serverConnected || state.phase !== 'connected') throw new Error('Sluit de lokale test af en verbind met TikTok LIVE.');
+  const generation = moderationGeneration();
   const response = await fetch('/api/moderation', { method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'faynominaal' }, body: JSON.stringify(input) });
-  const result = await response.json() as { error?: string };
+  const result = await response.json() as { error?: string; moderation?: ModerationFeedbackSnapshot };
+  if (result.moderation) applyModerationFeedback(result.moderation, generation);
   if (!response.ok) throw new Error(result.error || 'Moderatie mislukt.');
 }
 
 export async function moderateMessage(actionName: 'mute' | 'ban', messageId: number, duration: number): Promise<boolean> {
   try {
     await action({ action: actionName, messageId, ...(actionName === 'mute' ? { duration } : {}) });
-    toast(`${actionNames[actionName]} door TikTok geaccepteerd.`);
+    const message = state.messages.find(item => item.id === messageId);
+    toast(`@${message?.user || 'gebruiker'}: ${actionNames[actionName]}${actionName === 'mute' ? duration === 0 ? ' voor deze LIVE' : ` voor ${duration}s` : ''} door TikTok geaccepteerd.`);
     return true;
   } catch (error) { toast(error instanceof Error ? error.message : 'Moderatie mislukt.'); return false; }
 }
@@ -51,6 +60,7 @@ export function mountModeration(): void {
     <div class="moderation-lists">
       <section class="moderation-panel" aria-labelledby="muted-title"><div class="moderation-panel-heading">
         <h3 id="muted-title">Gedempte gebruikers</h3><span class="moderation-count" data-count-muted>—</span></div>
+        <div class="dashboard-mutes" data-dashboard-mutes hidden></div><div class="moderation-source">TikTok-lijst · huidige pagina</div>
         <div class="moderation-list-body" data-muted></div></section>
       <section class="moderation-panel" aria-labelledby="blocked-title"><div class="moderation-panel-heading">
         <h3 id="blocked-title">Geblokkeerde gebruikers</h3><span class="moderation-count" data-count-blocked>—</span></div>
@@ -67,6 +77,31 @@ export function mountModeration(): void {
   const pages = { muted: 0, blocked: 0 };
   const cursors: Record<'muted' | 'blocked', string[]> = { muted: [''], blocked: [''] };
   const find = (selector: string) => root.querySelector<HTMLElement>(selector)!;
+  let trackedKey = '';
+  function paintDashboardMutes() {
+    const entries = activeDashboardMutes();
+    const key = JSON.stringify(entries) + String(state.moderation?.mute);
+    if (key === trackedKey) return;
+    trackedKey = key;
+    const node = find('[data-dashboard-mutes]');
+    node.hidden = entries.length === 0;
+    node.innerHTML = `<h4>Via dashboard gedempt (${entries.length})</h4><p>Door TikTok geaccepteerd. Verwachte eindtijd; acties buiten dit dashboard worden niet gevolgd.</p><ul>`
+      + entries.map(entry => `<li><div><strong>@${escapeHTML(entry.name)}</strong><span class="moderation-feedback" data-moderation-user="${escapeHTML(entry.userId)}" data-moderation-axis="mute">${moderationBadges(entry.userId,'mute')}</span></div>
+        <button data-tracked-unmute="${escapeHTML(entry.userId)}" ${!state.moderation?.mute ? 'disabled' : ''}>Dempen opheffen</button></li>`).join('') + '</ul>';
+  }
+  subscribeModerationFeedback(paintDashboardMutes, () => root.isConnected);
+  find('[data-dashboard-mutes]').addEventListener('click', async event => {
+    const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-tracked-unmute]') : null;
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    try {
+      await action({action:'unmute',targetId:button.dataset.trackedUnmute,page:0,cursor:''});
+      toast('Dempen opheffen door TikTok geaccepteerd.');
+      await loadList('muted');
+    } catch(error) { toast(error instanceof Error ? error.message : 'Herstellen mislukt.'); button.disabled=false; }
+    await loadAudit();
+  });
+  paintDashboardMutes();
 
   async function loadAudit() {
     try {
@@ -107,8 +142,10 @@ export function mountModeration(): void {
     const cursor = cursors[kind][page] || '';
     try {
       const query = new URLSearchParams({ list: kind, page: String(page), cursor });
+      const generation = moderationGeneration();
       const response = await fetch(`/api/moderation?${query}`);
-      const result = await response.json() as Access & { list?: List; error?: string };
+      const result = await response.json() as Access & { list?: List; error?: string; moderation?: ModerationFeedbackSnapshot };
+      if (result.moderation) applyModerationFeedback(result.moderation, generation);
       if (!response.ok || !result.list) throw new Error(result.error || 'Lijst laden mislukt.');
       if (!root.isConnected) return;
       const restore = kind === 'muted' ? 'unmute' : 'unban';
@@ -116,8 +153,8 @@ export function mountModeration(): void {
       users.className = 'moderation-users';
       users.setAttribute('aria-label', kind === 'muted' ? 'Gedempte gebruikers' : 'Geblokkeerde gebruikers');
       users.tabIndex = 0;
-      find(`[data-count-${kind}]`).textContent = String(result.list.users.length);
-      find(`[data-count-${kind}]`).setAttribute('aria-label', `${result.list.users.length} gebruikers op deze pagina`);
+      find(`[data-count-${kind}]`).textContent = String(result.list.users.length) + (kind === 'muted' ? ' in TikTok' : '');
+      find(`[data-count-${kind}]`).setAttribute('aria-label', `${result.list.users.length} gebruikers op deze TikTok-pagina`);
       for (const user of result.list.users) {
         const row = document.createElement('li');
         row.className = 'moderation-user';

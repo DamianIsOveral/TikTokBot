@@ -5,6 +5,7 @@ import type { Message } from './model.js';
 import { renderPage } from './pages.js';
 import { moderationDisabledReason } from '../shared/moderation-policy.js';
 import {usernameColor} from '../shared/username-color.js';
+import {moderationBadges, moderationEntries} from './moderation-feedback.js';
 
 function avatar(message: Message): string { return escapeHTML(message.user[0]?.toUpperCase() || '?'); }
 function actionButtons(message: Message): string {
@@ -28,7 +29,7 @@ export function render(): void {
     const flagged = !message.resolved && (message.manualReview || automaticCategory(message, state.settings));
     return `<div data-message="${message.id}" class="row ${flagged ? 'flagged' : ''}"><time>${escapeHTML(message.time)}</time>
       <div class="avatar">${avatar(message)}</div><strong class="user-color-${usernameColor(message.user)}">${escapeHTML(message.user)}${message.isBot?'<small class="bot-label">BOT</small>':''}${message.isModerator?'<small class="mod-label">MOD</small>':''}${flagged?'<small class="review-label" title="Gemarkeerd voor beoordeling" aria-label="Gemarkeerd voor beoordeling">!</small>':''}</strong>
-      <p>${escapeHTML(message.text)}</p><button class="review-message" data-menu="${message.id}"
+      <p>${escapeHTML(message.text)}<span class="moderation-feedback" data-moderation-user="${escapeHTML(message.userId || '')}">${moderationBadges(message.userId)}</span></p><button class="review-message" data-menu="${message.id}"
       aria-label="Acties voor @${escapeHTML(message.user)}" aria-haspopup="menu" aria-controls="message-menu"
       aria-expanded="${state.menuMessageId === message.id}" title="Berichtacties">⋯</button></div>`;
   }).join('') || `<div class="empty">${state.liveMode && (!state.serverConnected || state.phase !== 'connected')
@@ -43,7 +44,10 @@ export function render(): void {
       <p>${escapeHTML(message.text)}</p><span class="tag">${escapeHTML(automaticCategory(message, state.settings) || 'Handmatig')}</span></div></div>
       ${actionButtons(message)}</div>`).join('')
     || '<div class="empty">✓ Geen berichten om te beoordelen.</div>';
-  element('#activity').textContent = state.activity[0] || 'Nog geen lokale acties.';
+  const latest = moderationEntries().slice().sort((a,b)=>b.at.localeCompare(a.at))[0];
+  const actions = {mute:'Dempen',unmute:'Dempen opheffen',ban:'Blokkeren',unban:'Deblokkeren'};
+  element('#activity').textContent = latest ? `@${latest.name}: ${actions[latest.action]} · ${latest.status === 'accepted' ? 'door TikTok geaccepteerd' : 'uitkomst onbekend'} · ${new Date(latest.at).toLocaleTimeString('nl-NL')}`
+    : state.activity[0] || 'Nog geen moderatieacties via dit dashboard.';
   if (state.page === 'Overzicht') renderPage(render);
 }
 

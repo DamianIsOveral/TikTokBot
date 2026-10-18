@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="workspace.css">
 <link rel="stylesheet" href="moderation.css">
+<link rel="stylesheet" href="moderation-feedback.css">
 <link rel="stylesheet" href="access.css">
 <link rel="stylesheet" href="command-status.css">
 <link rel="stylesheet" href="filters.css">
@@ -138,6 +139,13 @@
 </footer>
 <section id="activity-panel" class="live-activity-panel" aria-labelledby="activity-title" hidden>
 <div class="live-activity-heading"><h3 id="activity-title">LIVE-activiteit</h3><button id="activity-hide" type="button">Verbergen</button></div>
+<details class="activity-filter-options"><summary id="activity-filter-summary">Soorten activiteit</summary>
+<div id="activity-filters" role="group" aria-label="Zichtbare activiteitsoorten">
+<button type="button" data-activity-kind="join" aria-pressed="true">Binnenkomsten</button>
+<button type="button" data-activity-kind="gift" aria-pressed="true">Cadeaus</button>
+<button type="button" data-activity-kind="follow" aria-pressed="true">Volgers</button>
+<button type="button" data-activity-kind="share" aria-pressed="true">Gedeeld</button>
+</div><small>Alleen jouw weergave. De laatste 100 gebeurtenissen blijven bewaard, ook als een soort verborgen is.</small></details>
 <ol id="activity-feed" aria-label="Recente LIVE-activiteit"></ol>
 </section>
 </article>

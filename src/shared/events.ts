@@ -1,5 +1,6 @@
 import type { ChatCapabilities } from './capabilities.js';
 import type { FilterDocument } from './filter-settings.js';
+import type { ModerationFeedbackSnapshot } from './moderation-feedback.js';
 
 export type Phase = 'idle' | 'connecting' | 'connected' | 'stopped' | 'disconnected' | 'error';
 export type Mode = 'demo' | 'live';
@@ -25,6 +26,7 @@ export interface BotEvent { type: 'bot'; text: string }
 export interface CapabilityEvent { type: 'capabilities'; value: ChatCapabilities }
 export interface CommandsChangedEvent { type: 'commands-changed'; revision: number }
 export interface FiltersChangedEvent { type: 'filters-changed'; value: FilterDocument }
+export interface ModerationChangedEvent { type: 'moderation-changed'; value: ModerationFeedbackSnapshot }
 
 export interface ChatEvent extends IncomingChat {
   id: number;
@@ -49,11 +51,12 @@ export interface Snapshot {
   messages: ChatEvent[];
   activity?: ActivityEvent[];
   filters?: FilterDocument;
+  moderation?: ModerationFeedbackSnapshot;
   botStatus?: string;
   capabilities?: ChatCapabilities;
 }
 
 export type LiveEvent = StatusEvent | IncomingChat | IncomingActivity | BotEvent | CapabilityEvent;
-export type ServerEvent = StatusEvent | ChatEvent | ActivityEvent | Snapshot | BotEvent | CapabilityEvent | CommandsChangedEvent | FiltersChangedEvent;
+export type ServerEvent = StatusEvent | ChatEvent | ActivityEvent | Snapshot | BotEvent | CapabilityEvent | CommandsChangedEvent | FiltersChangedEvent | ModerationChangedEvent;
 export type ClientEvent = ServerEvent | { type: 'transport'; text: string };
 export interface PublicConfig { username: string; botUsername: string; botEnabled: boolean }
