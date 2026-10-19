@@ -14,3 +14,4 @@ body:is([data-review-actions="compact"],[data-review-actions="menu"]) .review-ac
 .recent-moderation>summary{cursor:pointer;width:fit-content;font-size:12px;line-height:1.4}
 .recent-moderation #activity{padding-top:4px;overflow-wrap:anywhere}
 body.compact .recent-moderation,body.compact .recent-moderation>summary{font-size:11px}
+.display-options{max-height:min(520px,calc(100dvh - 240px));overflow:auto}
