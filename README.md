@@ -23,6 +23,10 @@ Chat, beoordelingen en LIVE-activiteit tonen de zichtbare naam van TikTok. Hover
 
 Onder **Weergave → Kleurenthema** kies je **Systeem**, **Licht** of **Donker**. Standaard volgt het dashboard je systeem, ook als dat tijdens gebruik wisselt. Je keuze blijft alleen in deze browser bewaard en geldt ook op de inlogpagina; hoog contrast en andere persoonlijke weergaveopties blijven afzonderlijk instelbaar.
 
+Onder **Indeling** kies je een startindeling of stel je de panelen zelf in: naast of onder elkaar, alleen chat of beoordelingen, en een aparte volgorde voor brede en smalle schermen. LIVE-activiteit kan bij chat of beoordelingen staan, onderaan over de volle breedte, of in een eigen kolom. De derde kolom schuift naar onderen als er te weinig ruimte is. De schuifregelaars regelen de breedteverdeling, paneelhoogten bij stapelen en activiteitsruimte; de scheidingsbalk blijft met muis en toetsenbord bedienbaar. Alle keuzes blijven lokaal bewaard. De standaardknop herstelt alleen deze indeling.
+
+Compacte weergave verkleint ook de navigatie, koppen, tussenruimte, chatregels, beoordelingskaarten en activiteitregels. Berichten en acties blijven beschikbaar; bij heel kleine paneelhoogten kun je binnen het paneel scrollen.
+
 Profielfoto’s komen uit de bestaande LIVE-events en vereisen geen extra profielaanvragen. De browser laadt toegestane HTTPS-afbeeldingen van TikTok-CDN’s met lazy loading en zonder referrer. Ontbrekende of kapotte foto’s vallen terug op een letter. Onder **Weergave → Profielfoto’s tonen** kun je alleen letters kiezen; dan maakt de pagina geen avatarafbeeldingen aan. Kleuren, compact, profielfoto’s en LIVE-activiteit staan voor nieuwe browservoorkeuren standaard aan; bestaande keuzes blijven behouden. **Kijkers** verschijnt pas zodra de LIVE-stream een geldig kijkersaantal levert, zonder extra polling.
 
 ## Samen gebruiken

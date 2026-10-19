@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="activity.css">
 <link rel="stylesheet" href="branding.css">
 <link rel="stylesheet" href="layout.css">
+<link rel="stylesheet" href="density.css">
 <link rel="stylesheet" href="theme.css">
 <link id="dashboard-favicon" rel="icon" href="/branding/icon">
 </head>
@@ -92,6 +93,25 @@
 <label><input id="high-contrast" type="checkbox"> Hoog contrast</label>
 <label><input id="activity-toggle" type="checkbox"> LIVE-activiteit tonen</label>
 <small>Alleen jouw weergave. Filters worden met de bot gedeeld.</small>
+</div></details>
+<details id="layout-options" class="workspace-preferences"><summary>Indeling</summary><div class="workspace-options">
+<div class="workspace-options-heading"><strong>Indeling</strong><button id="layout-close" type="button" aria-label="Indeling sluiten">Sluiten</button></div>
+<label class="layout-field">Startindeling<select id="layout-preset" aria-label="Startindeling"><option value="">Aangepast</option><option value="balanced">Gebalanceerd</option><option value="chat">Meer chatruimte</option><option value="moderation">Moderatie eerst</option><option value="three">Drie panelen</option></select></label>
+<label class="layout-field">Plaatsing<select id="layout-mode" aria-label="Plaatsing van panelen"><option value="auto">Automatisch</option><option value="columns">Naast elkaar</option><option value="stacked">Onder elkaar</option></select></label>
+<label class="layout-field">Panelen tonen<select id="layout-visible" aria-label="Panelen tonen"><option value="both">Beide panelen</option><option value="chat">Alleen Livechat</option><option value="review">Alleen verdachte berichten</option></select></label>
+<label class="layout-field">Links naast elkaar<select id="layout-order" aria-label="Linker paneel"><option value="chat">Livechat</option><option value="review">Verdachte berichten</option></select></label>
+<label class="layout-field">Bovenaan bij stapelen<select id="layout-stack-first" aria-label="Bovenste paneel bij stapelen"><option value="chat">Livechat</option><option value="review">Verdachte berichten</option></select></label>
+<label class="layout-field">LIVE-activiteit<select id="layout-activity" aria-label="Plaats van LIVE-activiteit"><option value="review">Bij verdachte berichten</option><option value="chat">Bij Livechat</option><option value="bottom">Onderaan, volle breedte</option><option value="column">Eigen kolom</option></select></label>
+<details class="layout-sizes"><summary>Maten aanpassen</summary>
+<label for="layout-share">Aandeel Livechat <output for="layout-share">53%</output></label><input id="layout-share" aria-label="Aandeel Livechat" type="range" min="20" max="80" step="1" value="53">
+<label for="layout-chat-height">Chathoogte bij stapelen <output for="layout-chat-height">480 px</output></label><input id="layout-chat-height" aria-label="Chathoogte bij stapelen" type="range" min="240" max="960" step="20" value="480">
+<label for="layout-review-height">Beoordelingen bij stapelen <output for="layout-review-height">420 px</output></label><input id="layout-review-height" aria-label="Hoogte verdachte berichten bij stapelen" type="range" min="240" max="960" step="20" value="420">
+<label for="layout-activity-height">Activiteithoogte <output for="layout-activity-height">220 px</output></label><input id="layout-activity-height" aria-label="Hoogte LIVE-activiteit" type="range" min="120" max="480" step="20" value="220">
+<label for="layout-activity-width">Activiteitkolom <output for="layout-activity-width">280 px</output></label><input id="layout-activity-width" aria-label="Breedte activiteitkolom" type="range" min="220" max="480" step="20" value="280">
+</details>
+<small id="layout-status" role="status">Jouw indeling wordt in deze browser bewaard.</small>
+<button id="layout-reset" type="button">Standaardindeling herstellen</button>
+<small>Alleen jouw weergave. Op smalle schermen blijven de panelen onder elkaar leesbaar.</small>
 </div></details></div>
 </header>
 <div class="demo"><b id="connection-badge" role="status">NIET VERBONDEN</b> <span>Verbind met TikTok LIVE om berichten te ontvangen.</span>
