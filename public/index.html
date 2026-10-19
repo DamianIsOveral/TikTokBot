@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https://tiktok.com https://*.tiktok.com https://tiktokcdn.com https://*.tiktokcdn.com https://tiktokcdn-us.com https://*.tiktokcdn-us.com https://byteoversea.com https://*.byteoversea.com https://ibytedtos.com https://*.ibytedtos.com; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'">
 <title>Faynominaal LIVE Dashboard</title>
+<script src="/theme.js"></script>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="workspace.css">
 <link rel="stylesheet" href="moderation.css">
@@ -15,6 +16,7 @@
 <link rel="stylesheet" href="activity.css">
 <link rel="stylesheet" href="branding.css">
 <link rel="stylesheet" href="layout.css">
+<link rel="stylesheet" href="theme.css">
 <link id="dashboard-favicon" rel="icon" href="/branding/icon">
 </head>
 <body>
@@ -80,6 +82,9 @@
 </article>
 </div>
 <details class="display-preferences"><summary>Weergave</summary><div class="display-options">
+<label class="theme-preference" for="theme-mode">Kleurenthema
+<select id="theme-mode" aria-label="Kleurenthema" data-theme-mode><option value="system">Systeem</option><option value="light">Licht</option><option value="dark">Donker</option></select></label>
+<small id="theme-status" role="status" hidden></small>
 <label><input id="username-colors" type="checkbox"> Gebruikerskleuren</label>
 <label><input id="compact-mode" type="checkbox"> Compacte weergave</label>
 <label><input id="user-avatars" type="checkbox"> Profielfoto’s tonen (uit: alleen letters)</label>
