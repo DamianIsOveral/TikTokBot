@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 test('display defaults preserve explicit choices and letter-only mode never creates image requests', async t => {
   const classes = new Set<string>();
-  const fields = new Map<string,{checked:boolean;onchange?:()=>void}>();
+  const fields = new Map<string,{checked:boolean;value:string;hidden:boolean;open:boolean;onchange?:()=>void;addEventListener:(name:string,callback:()=>void)=>void}>();
   const saved = new Map<string,string>();
   let imageError: ((event:{target:unknown})=>void)|undefined;
   class Image {
@@ -12,8 +12,8 @@ test('display defaults preserve explicit choices and letter-only mode never crea
     remove(){this.removed=true;}
   }
   const globals={
-    document:{body:{classList:{contains:(name:string)=>classes.has(name),toggle:(name:string,enabled:boolean)=>enabled?classes.add(name):classes.delete(name)}},
-      querySelector:(name:string)=>{if(!fields.has(name))fields.set(name,{checked:false});return fields.get(name);},
+    document:{body:{dataset:{},classList:{contains:(name:string)=>classes.has(name),toggle:(name:string,enabled:boolean)=>enabled?classes.add(name):classes.delete(name)}},
+      querySelector:(name:string)=>{if(!fields.has(name))fields.set(name,{checked:false,value:'',hidden:false,open:false,addEventListener:()=>{}});return fields.get(name);},
       addEventListener:(name:string,callback:typeof imageError)=>{if(name==='error')imageError=callback;},dispatchEvent:()=>{}},
     localStorage:{getItem:(name:string)=>saved.get(name)??null,setItem:(name:string,value:string)=>saved.set(name,value)},
     HTMLImageElement:Image

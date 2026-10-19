@@ -1,6 +1,7 @@
 import {element,toast} from './dom.js';
 import {normalizeWorkspace,workspaceFlow,workspacePreset,workspaceRanges} from './workspace-settings.js';
 import type {WorkspaceSettings} from './workspace-settings.js';
+import {initializeActivityResize} from './activity-resize.js';
 
 const key = 'fay-workspace-layout';
 const selectFields = {mode:'mode',visible:'visible',order:'order','stack-first':'stackFirst',activity:'activity'} as const;
@@ -21,6 +22,7 @@ export function initializeWorkspace(): void {
   const review = element('#review-panel');
   const activity = element('#activity-panel');
   const separator = element('#chat-resize');
+  const activitySeparator = element('#activity-resize');
   const status = element('#layout-status');
   const menu = element<HTMLDetailsElement>('#layout-options');
   const displayMenu = element<HTMLDetailsElement>('.display-preferences');
@@ -52,10 +54,13 @@ export function initializeWorkspace(): void {
       element(`output[for="layout-${id}"]`).textContent = `${Math.round(settings[field])}${field === 'split' ? '%' : ' px'}`;
     }
   };
+  const activityResize = initializeActivityResize({columns,chat,review,activity,separator:activitySeparator,
+    getHeight:() => settings.activityHeight,
+    setHeight:height => { settings.activityHeight = height;syncControls();element<HTMLSelectElement>('#layout-preset').value = ''; },persist});
 
   function apply(): void {
     syncControls();
-    if (!columns.clientWidth) return;
+    if (!columns.clientWidth) { activityResize.update();return; }
     const flow = workspaceFlow(settings,columns.clientWidth);
     const first = flow === 'stacked' ? settings.stackFirst : settings.order;
     const visible = settings.visible === 'both' ? [chat,review] : [settings.visible === 'chat' ? chat : review];
@@ -68,9 +73,9 @@ export function initializeWorkspace(): void {
     chat.classList.toggle('layout-hidden',!visible.includes(chat));
     review.classList.toggle('layout-hidden',!visible.includes(review));
     const parent = placement === 'chat' ? chat : placement === 'review' ? review : columns;
-    if (activity.parentElement !== parent) parent.append(activity);
+    if (activity.parentElement !== parent || activitySeparator.parentElement !== parent) parent.append(activitySeparator,activity);
     const order = first === 'chat' ? [chat,separator,review] : [review,separator,chat];
-    if (parent === columns) order.push(activity);
+    if (parent === columns) order.push(activitySeparator,activity);
     if (order.some((node,index) => columns.children[index] !== node)) columns.replaceChildren(...order);
     for (const [name,field] of Object.entries(sizeFields)) {
       if (field !== 'split') columns.style.setProperty(`--${name}`,`${settings[field]}px`);
@@ -98,6 +103,7 @@ export function initializeWorkspace(): void {
         ? 'LIVE-activiteit staat onderaan tot er ruimte is voor een derde kolom.'
         : 'Jouw indeling wordt in deze browser bewaard.';
     if (flow !== 'columns' && pointer !== null) endDrag(true);
+    activityResize.update();
   }
 
   function endDrag(cancelled = false): void {

@@ -16,15 +16,18 @@ export function createMessageActions(onChange: () => void) {
   let busy = false;
   let view: 'main' | 'mute' | 'mute-ban' = 'main';
   let position = { x: 12, y: 12 };
+  let origin: 'chat' | 'reviews' = 'chat';
+  const expanded = (value:boolean) => document.querySelectorAll(`[data-menu="${state.menuMessageId}"]`)
+    .forEach(node=>node.setAttribute('aria-expanded',String(value)));
 
   function close() {
-    document.querySelector(`[data-menu="${state.menuMessageId}"]`)?.setAttribute('aria-expanded', 'false');
+    expanded(false);
     state.menuMessageId = undefined;
     if (menu.matches(':popover-open')) menu.hidePopover();
   }
   menu.addEventListener('toggle', () => {
     if (!menu.matches(':popover-open')) {
-      document.querySelector(`[data-menu="${state.menuMessageId}"]`)?.setAttribute('aria-expanded', 'false');
+      expanded(false);
       state.menuMessageId = undefined;
     }
   });
@@ -99,12 +102,13 @@ export function createMessageActions(onChange: () => void) {
     if (focusedAction) [...menu.querySelectorAll<HTMLButtonElement>('button')].find(button => button.dataset.menuAction === focusedAction)?.focus();
   }
 
-  async function open(id: number, point: { x: number; y: number }) {
+  async function open(id: number, point: { x: number; y: number }, source: 'chat' | 'reviews' = 'chat') {
     close();
+    origin=source;
     state.menuMessageId = id;
     view = 'main'; position = point;
     menu.showPopover(); paint();
-    document.querySelector(`[data-menu="${id}"]`)?.setAttribute('aria-expanded', 'true');
+    expanded(true);
     menu.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
     await refreshModerationAccess();
     if (menu.matches(':popover-open') && state.menuMessageId === id) { paint(); onChange(); }
@@ -137,7 +141,7 @@ export function createMessageActions(onChange: () => void) {
     const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
     if (event.key === 'Escape') {
       event.preventDefault(); const id = state.menuMessageId; close();
-      document.querySelector<HTMLButtonElement>(`[data-menu="${id}"]`)?.focus();
+      document.querySelector<HTMLButtonElement>(`#${origin} [data-menu="${id}"]`)?.focus();
     }
     else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();

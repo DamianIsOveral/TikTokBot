@@ -1,0 +1,17 @@
+.review-menu{display:none}
+body[data-review-actions="full"] .review-actions .review-menu{display:none}
+body[data-review-actions="compact"] .card .review-actions,
+body[data-review-actions="menu"] .card .review-actions{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:5px}
+body[data-review-actions="compact"] .review-actions .review-secondary,
+body[data-review-actions="menu"] .review-actions :is(.review-secondary,.review-quick-mute,.review-duration){display:none}
+body[data-review-actions="compact"] .card .review-actions :is(button,select),
+body[data-review-actions="menu"] .card .review-actions button{flex:none;width:auto;min-width:0;min-height:27px;padding:3px 9px;font-size:12px;line-height:1.4;white-space:nowrap}
+body[data-review-actions="compact"] .review-actions .review-duration{order:1;max-width:105px}
+body[data-review-actions="compact"] .review-actions .review-menu{order:2}
+body:is([data-review-actions="compact"],[data-review-actions="menu"]) .card .review-actions .review-menu{display:inline-block;width:29px;padding:3px}
+body:is([data-review-actions="compact"],[data-review-actions="menu"]) .review-actions .action-unavailable{flex-basis:100%;font-size:11px;line-height:1.4}
+.recent-moderation{flex:none;min-width:0;font-size:12px;line-height:1.4;color:var(--muted)}
+.recent-moderation>summary{cursor:pointer;width:fit-content;font-size:12px;line-height:1.4}
+.recent-moderation #activity{padding-top:4px;overflow-wrap:anywhere}
+body.compact .recent-moderation,body.compact .recent-moderation>summary{font-size:11px}
+.display-options{max-height:min(520px,calc(100dvh - 240px));overflow:auto}

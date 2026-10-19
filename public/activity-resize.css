@@ -1,0 +1,8 @@
+#activity-resize{display:flex;align-items:center;justify-content:center;height:12px;min-height:12px;max-height:12px;flex:0 0 12px;cursor:row-resize;touch-action:none;border-radius:5px;outline-offset:0}
+#activity-resize[hidden]{display:none}
+#activity-resize::after{content:'';width:48px;height:4px;border-radius:3px;background:#486073}
+#activity-resize:hover::after,#activity-resize:focus-visible::after,body.resizing-activity #activity-resize::after{background:var(--cyan)}
+#activity-resize:focus-visible{outline:2px solid var(--cyan)}
+body.resizing-activity{cursor:row-resize;user-select:none}
+#chatpage[data-flow] .panel>#activity-panel{height:var(--activity-size,var(--activity-height,220px));min-height:var(--activity-min-size,80px);max-height:none;flex:0 0 var(--activity-size,var(--activity-height,220px))}
+#chatpage[data-flow] .panel>#activity-panel .activity-filter-options{flex:0 0 auto;max-height:none}

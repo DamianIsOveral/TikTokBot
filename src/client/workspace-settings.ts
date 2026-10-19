@@ -19,7 +19,7 @@ export const defaultWorkspace: WorkspaceSettings = {
 const choices = {mode:['auto','columns','stacked'],visible:['both','chat','review'],order:['chat','review'],
   stackFirst:['chat','review'],activity:['chat','review','bottom','column']} as const;
 export const workspaceRanges = {split:[20,80],chatHeight:[240,960],reviewHeight:[240,960],
-  activityHeight:[120,480],activityWidth:[220,480]} as const;
+  activityHeight:[80,800],activityWidth:[220,480]} as const;
 
 export function normalizeWorkspace(input: unknown): WorkspaceSettings {
   const result = {...defaultWorkspace};
