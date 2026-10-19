@@ -1,0 +1,100 @@
+body.compact main{padding:10px;gap:7px}
+body.compact header{gap:8px 16px}
+body.compact .account{gap:9px}
+body.compact .hero{width:36px;height:36px;font-size:19px}
+body.compact .account h1{font-size:18px;margin-bottom:1px}
+body.compact .account .muted{font-size:12px;line-height:1.35}
+body.compact .header-tools{gap:7px}
+body.compact .metrics article{gap:5px;padding:5px 8px;font-size:14px}
+body.compact .metrics article>div{gap:6px}
+body.compact .metrics strong{font-size:15px}
+body.compact .metrics small{font-size:12px}
+body.compact :is(.display-preferences,.workspace-preferences,.test-options)>summary{padding:6px 8px;font-size:12px}
+body.compact .demo{gap:6px;font-size:11px;letter-spacing:0}
+body.compact .demo span{font-size:12px;line-height:1.3}
+body.compact .connection-actions{gap:5px}
+body.compact .demo button{padding:6px 9px;min-height:29px}
+body.compact #connection-badge{padding:5px 8px}
+body.compact .bot-status{padding:7px 10px;font-size:12px;line-height:1.4}
+body.compact .panel{padding:10px;border-radius:9px}
+body.compact .chatpanel,body.compact .reviewpanel{gap:7px}
+body.compact .panelhead{gap:7px}
+body.compact .panelhead h2{font-size:17px;line-height:1.3}
+body.compact .panelhead small{margin-top:2px;font-size:12px}
+body.compact .panelhead select{padding:5px 7px;font-size:12px}
+body.compact .panelhead b{padding:1px 6px;margin-left:5px;font-size:12px}
+body.compact #search{padding:6px 9px;font-size:12px;min-height:30px}
+body.compact .command-status{gap:3px 10px;padding:5px 7px;font-size:12px;line-height:1.35}
+body.compact .command-status :is(strong,summary,small){font-size:12px}
+body.compact .command-status small{padding-top:4px}
+body.compact .row{grid-template-columns:37px 24px minmax(75px,105px) minmax(0,1fr) 27px;gap:6px;padding:5px 3px;min-height:35px}
+body.compact .row .avatar{width:24px;height:24px;font-size:12px}
+body.compact .row :is(time,strong,p){font-size:12px;line-height:1.4}
+body.compact .row .review-message{width:27px;min-width:27px;min-height:26px;padding:3px}
+body.compact .bot-label,body.compact .mod-label{padding:0 3px;margin-left:3px;font-size:10px}
+body.compact .review-label{margin-left:3px;font-size:10px}
+body.compact .moderation-feedback{gap:3px;margin-top:3px}
+body.compact .moderation-feedback-badge{padding:1px 5px;font-size:11px;line-height:1.4}
+body.compact .tabs{gap:5px}
+body.compact .tabs button{padding:5px 9px;font-size:12px;min-height:28px}
+body.compact .card{padding:8px;margin-bottom:6px;border-radius:7px;container:review-card / inline-size}
+body.compact .cardtop{gap:8px}
+body.compact .card .avatar{width:24px;height:24px;font-size:12px}
+body.compact .cardbody strong,body.compact .cardbody p{font-size:12px;line-height:1.4}
+body.compact .cardbody p{margin:4px 0}
+body.compact .card time{font-size:11px}
+body.compact .tag{padding:2px 7px;font-size:11px}
+body.compact .card .actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:6px}
+body.compact .actions button,body.compact .actions select{width:100%;min-width:0;padding:5px 6px;min-height:29px;font-size:12px;white-space:normal;overflow-wrap:anywhere}
+body.compact .action-unavailable{grid-column:1 / -1;font-size:12px;line-height:1.4}
+@container review-card (min-width:400px){body.compact .card .actions{grid-template-columns:repeat(4,minmax(0,1fr)) 90px}}
+@container review-card (max-width:279px){body.compact .card .actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
+body.compact .panelbottom{font-size:11px;line-height:1.35}
+body.compact .reviewpanel>footer{font-size:11px;line-height:1.5}
+body.compact #chatpage[data-flow]>#activity-panel{padding:10px;border-radius:9px}
+body.compact .live-activity-panel{padding-top:7px}
+body.compact .live-activity-heading{gap:7px}
+body.compact .live-activity-heading h3{font-size:13px}
+body.compact .live-activity-heading button{padding:3px 7px;min-height:26px;font-size:12px}
+body.compact .activity-filter-options{margin:6px 0;font-size:12px}
+body.compact #activity-filters{gap:5px;margin:6px 0}
+body.compact #activity-filters button{padding:4px 7px;min-height:27px;font-size:12px}
+body.compact .activity-filter-options small{font-size:12px;line-height:1.4}
+body.compact .live-activity-row{grid-template-columns:24px minmax(0,1fr) auto;gap:6px;padding:5px 0;align-items:center;font-size:12px;line-height:1.4}
+body.compact .live-activity-row .live-activity-avatar{width:24px;height:24px;font-size:12px}
+body.compact .live-activity-row strong{margin-right:5px;font-size:12px}
+body.compact .live-activity-row br{display:none}
+body.compact .live-activity-row time{font-size:11px}
+body.compact .live-activity-empty{padding:7px 0;font-size:12px;line-height:1.4}
+body.compact .empty{padding:20px 8px;font-size:12px}
+body.compact .workspace-options,body.compact .display-options{padding:12px;gap:10px}
+@media(min-width:601px){
+  body.compact.sidebar-expanded aside{width:188px;padding:16px 7px}
+  body.compact.sidebar-expanded .brand{gap:10px;padding:0 10px 16px}
+  body.compact.sidebar-expanded .brand strong{font-size:16px}
+  body.compact.sidebar-expanded .brand small{margin-top:3px;font-size:11px}
+  body.compact.sidebar-expanded .logo{font-size:38px}
+  body.compact.sidebar-expanded nav{gap:3px}
+  body.compact.sidebar-expanded nav button{grid-template-columns:22px minmax(0,1fr);column-gap:10px;padding:8px 10px}
+  body.compact.sidebar-expanded nav button>span:not(.nav-icon){font-size:13px}
+  body.compact.sidebar-expanded nav button .nav-icon{width:22px;height:24px;font-size:20px}
+  body.compact.sidebar-expanded .sidefoot{padding:14px 10px;line-height:1.65}
+  body.compact #sidebar-toggle{min-width:30px;height:28px;font-size:21px;margin:0 0 10px}
+  body.compact.sidebar-collapsed aside{padding:12px 7px}
+  body.compact.sidebar-collapsed nav button{padding:8px 7px}
+  body.compact.sidebar-collapsed .brand{padding-bottom:16px}
+}
+@media(max-width:600px){
+  body.compact aside{padding:4px 6px}
+  body.compact nav button{padding:5px 3px}
+  body.compact nav button .nav-icon{height:22px;font-size:19px}
+  body.compact main{padding:8px;gap:7px}
+  body.compact header{gap:8px}
+  body.compact .metrics article{padding:5px 7px}
+  body.compact .row{grid-template-columns:24px minmax(0,1fr) 36px 27px;gap:2px 6px;padding:5px 2px;align-items:start}
+  body.compact .row .avatar{width:24px;height:24px}
+  body.compact .row time{font-size:11px;padding-top:1px}
+  body.compact .card time{margin-bottom:2px}
+  body.compact .panel{padding:8px}
+  body.compact .header-tools{gap:6px}
+}
