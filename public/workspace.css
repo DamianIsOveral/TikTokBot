@@ -1,4 +1,8 @@
 :root{--success:#75e3b1;--danger:#ff9b9b}
+.user-avatar{position:relative;overflow:hidden;flex-shrink:0}
+.user-avatar .user-picture{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:var(--panel);border-radius:inherit}
+#viewer-metric[hidden]{display:none}
+.metrics article[hidden]+article{border-left:0}
 .bot-label{display:inline-block;margin-left:6px;padding:2px 5px;border:1px solid #337a85;border-radius:4px;color:var(--cyan);font-size:10px;vertical-align:middle}
 .mod-label{display:inline-block;margin-left:6px;padding:2px 5px;border:1px solid #45876a;border-radius:4px;color:#80e3ad;font-size:10px;vertical-align:middle}
 .display-preferences{gap:18px;flex-wrap:wrap}

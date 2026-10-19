@@ -48,6 +48,11 @@ export function activeDashboardMutes(): ModerationFeedbackEntry[] {
     && (entry.expiresAt === undefined || entry.expiresAt > now));
 }
 
+export function confirmedRestriction(userId: string | undefined, action: 'mute' | 'ban'): boolean {
+  return !!userId && moderationEntries().some(entry => entry.userId === userId && entry.action === action
+    && entry.status === 'accepted' && (action === 'ban' || entry.expiresAt === undefined || entry.expiresAt > moderationNow()));
+}
+
 function label(entry: ModerationFeedbackEntry): { text: string; active: boolean; uncertain: boolean } {
   if (entry.status === 'uncertain') return { text: `${names[entry.action]} · uitkomst onbekend`, active: false, uncertain: true };
   if (entry.action === 'mute') {

@@ -30,6 +30,7 @@
   line-height:1.5
 }
 .live-activity-row:last-child { border-bottom:0 }
+.live-activity-row .live-activity-avatar{width:26px;height:26px;font-size:13px}
 .live-activity-row strong { font-size:12px }
 .live-activity-icon {
   display:grid;

@@ -1,10 +1,12 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { AppConfig } from '../config.ts';
+import {avatarCdnDomains} from '../../shared/user-identity.ts';
 
 const requestOrigins = new WeakMap<IncomingMessage, string>();
 
 export function secureRequest(req: IncomingMessage, res: ServerResponse, config: Pick<AppConfig, 'port' | 'publicOrigin'>): boolean {
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+  const images=avatarCdnDomains.flatMap(domain=>[`https://${domain}`,`https://*.${domain}`]).join(' ');
+  res.setHeader('Content-Security-Policy', `default-src 'self'; img-src 'self' ${images}; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('X-Frame-Options', 'DENY');

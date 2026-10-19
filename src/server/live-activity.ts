@@ -1,5 +1,6 @@
 import type { IncomingActivity } from '../shared/events.ts';
 import type { ActivitySourceEvent } from './types.ts';
+import { publicIdentity } from './public-identity.ts';
 
 type RecordValue = Record<string, unknown>;
 const record = (value: unknown): RecordValue => value !== null && typeof value === 'object' ? value as RecordValue : {};
@@ -22,11 +23,12 @@ export function createLiveActivity() {
     if (!Object.keys(data).length) return;
     const user = record(data.user);
     const name = text(user.uniqueId) || text(user.displayId) || text(user.nickname) || text(data.uniqueId) || 'Kijker';
+    const identity = publicIdentity(user);
     if (source === 'member') {
       if (data.action !== undefined && data.action !== 0 && data.action !== 1) return;
-      return { type: 'activity', kind: 'join', user: name };
+      return { type: 'activity', kind: 'join', user: name, ...identity };
     }
-    if (source !== 'gift') return { type: 'activity', kind: source, user: name };
+    if (source !== 'gift') return { type: 'activity', kind: source, user: name, ...identity };
     const gift = record(data.gift);
     const extended = record(data.extendedGiftInfo);
     // Combo updates carry cumulative counts; show the completed streak only.
@@ -39,7 +41,7 @@ export function createLiveActivity() {
     const key = group && group !== '0' ? `group:${actor}:${giftId}:${group}` : messageId && messageId !== '0' ? `message:${messageId}` : '';
     const previous = key ? remember(key, amount) : 0;
     if (previous >= amount) return;
-    return { type: 'activity', kind: 'gift', user: name,
+    return { type: 'activity', kind: 'gift', user: name, ...identity,
       gift: text(gift.name) || text(extended.name) || 'Cadeau', count: amount - previous };
   };
 }

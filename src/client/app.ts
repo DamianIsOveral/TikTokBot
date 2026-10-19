@@ -20,10 +20,18 @@ import { initializeLiveActivity, receiveLiveActivity, replaceLiveActivity, reset
 import { initializeBranding, refreshBranding } from './branding.js';
 import { initializeLayout } from './layout.js';
 import { applyModerationFeedback, initializeModerationFeedback } from './moderation-feedback.js';
+import {initializeUserAvatars} from './user-identity.js';
+
+function showViewers(count?:number):void {
+  const available=state.liveMode&&state.serverConnected&&state.phase==='connected'&&Number.isSafeInteger(count)&&(count??-1)>=0;
+  element('#viewer-metric').hidden=!available;
+  element('#viewer-count').textContent=available?new Intl.NumberFormat('nl-NL').format(count!):'';
+}
 
 function updateMode(live: boolean): void {
   messageActions.close();
   state.liveMode = live;
+  if (!live) showViewers();
   if (!live) resetLiveActivity();
   if (!live) applyModerationFeedback(undefined);
   element<HTMLButtonElement>('#add').disabled = live;
@@ -51,7 +59,9 @@ function updateConnection(data: StatusEvent | Snapshot): void {
 }
 
 function onEvent(data: ClientEvent): void {
-  if (data.type === 'moderation-changed') {
+  if (data.type === 'viewers') {
+    showViewers(data.count);
+  } else if (data.type === 'moderation-changed') {
     if (state.liveMode && state.serverConnected && state.phase === 'connected') {
       applyModerationFeedback(data.value);
       render();
@@ -72,6 +82,7 @@ function onEvent(data: ClientEvent): void {
     applyModerationFeedback(undefined);
     resetLiveActivity();
     state.serverConnected = false;
+    showViewers();
     element('#live-status').textContent = data.text;
     element<HTMLButtonElement>('#connect').disabled = element<HTMLButtonElement>('#stop').disabled = true;
     if (state.liveMode) resetMessages();
@@ -86,6 +97,7 @@ function onEvent(data: ClientEvent): void {
     showBotStatus(data.botStatus || '');
     updateConnection(data);
     updateMode(data.mode === 'live');
+    showViewers(data.viewerCount);
     resetMessages();
     if (state.liveMode && state.phase === 'connected') {
       for (const message of data.messages) addMessage(message.user, message.text, displayTime(message.time), message);
@@ -94,6 +106,7 @@ function onEvent(data: ClientEvent): void {
     render();
     if (state.phase === 'connected') void refreshModerationAccess().then(render);
   } else if (data.type === 'status') {
+    if (data.phase !== 'connected') showViewers();
     if (data.phase !== 'connected') applyModerationFeedback(undefined);
     if (data.phase !== 'connected') resetLiveActivity();
     state.moderation = undefined;
@@ -119,7 +132,8 @@ function showBotStatus(text: string): void {
 
 const connection = createConnection(onEvent);
 const messageActions = createMessageActions(render);
-initializePreferences();
+initializeUserAvatars();
+initializePreferences(render);
 initializeLayout();
 element('#demo').onclick = () => {
   if (state.liveMode) { updateMode(false); loadDemo(); render(); }
@@ -165,7 +179,7 @@ element('#reviews').addEventListener('click', async event => {
   if (!button || !message || message.resolved) return;
   const duration = Number(button.parentElement?.querySelector('select')?.value || 30);
   const action = button.dataset.action;
-  if (action !== 'mute' && action !== 'ban' && action !== 'ignore') return;
+  if (action !== 'mute' && action !== 'ban' && action !== 'mute-ban' && action !== 'ignore') return;
   button.disabled = true;
   await messageActions.perform(action, message.id, duration);
 });

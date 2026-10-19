@@ -42,11 +42,20 @@ export function createModerationRoutes(config: AppConfig, direct: DirectChat | u
         reason: !direct ? 'Directe moderatie is niet ingesteld.' : 'Verbind eerst met TikTok LIVE.' });
       return true;
     }
+    let acceptedMute = false;
     try {
-      let recordedRestore: string | undefined;
-      const active = () => live.roomId === roomId && authorized() && (!recordedRestore || feedback().entries.some(item =>
-        item.userId === recordedRestore && item.action === 'mute' && item.status === 'accepted'
-        && (item.expiresAt === undefined || item.expiresAt > Date.now())));
+      let recordedRestore: { userId: string; action: 'mute' | 'ban' } | undefined;
+      const restriction = (userId: unknown, action: 'mute' | 'ban') => feedback().entries.find(item =>
+        item.userId === userId && item.action === action && item.status === 'accepted'
+        && (item.expiresAt === undefined || item.expiresAt > Date.now()));
+      const active = () => live.roomId === roomId && authorized() && (!recordedRestore
+        || Boolean(restriction(recordedRestore.userId, recordedRestore.action)));
+      const identity = (userId: string) => {
+        const message = session.snapshot().messages.findLast(item => item.userId === userId);
+        const previous = audit.list(1000).filter(item => item.roomId === roomId && item.target.id === userId);
+        return { username: message?.user || previous.find(item => item.action === 'mute' || item.action === 'ban')?.target.name,
+          displayName: message?.displayName || previous.find(item => item.target.displayName)?.target.displayName };
+      };
       if (req.method === 'GET') {
         const kind = url.searchParams.get('list');
         const listKind = kind === 'muted' ? 'muted' : kind === 'blocked' ? 'blocked' : undefined;
@@ -58,64 +67,86 @@ export function createModerationRoutes(config: AppConfig, direct: DirectChat | u
         const list = listKind ? await direct.withModeration(mod => mod.list(config.username, roomId, listKind, page, cursor)) : undefined;
         reply(200, { connected: active(), enabled: config.moderationEnabled,
           mute: config.moderationEnabled && rights.mute, ban: config.moderationEnabled && rights.ban,
-          reason: config.moderationEnabled ? 'Moderatie gebruikt de rechten van het botaccount.' : 'Moderatie staat uit op de server.', list });
+          reason: config.moderationEnabled ? 'Moderatie gebruikt de rechten van het botaccount.' : 'Moderatie staat uit op de server.',
+          list: list && { ...list, users: list.users.map(entry => ({ ...entry, ...identity(entry.userId) })) } });
         return true;
       }
       if (!config.moderationEnabled) throw new CommandError('Moderatie staat uit op de server.', 403);
       const body = await readJson(req) as Record<string, unknown>;
-      if (!body || typeof body !== 'object' || !['mute', 'unmute', 'ban', 'unban'].includes(String(body.action))) throw new CommandError('Ongeldige moderatieactie.');
-      const action = body.action as ModerationAction;
-      if (Object.keys(body).some(key => !['action', 'messageId', 'targetId', 'page', 'cursor', 'duration'].includes(key))) throw new CommandError('Onbekend actieveld.');
-      const duration = action === 'mute' && typeof body.duration === 'number' ? body.duration : action === 'mute' ? -1 : 30;
-      if (action === 'mute' && ![0, 5, 30, 60, 300].includes(duration)) throw new CommandError('Ongeldige demptijd.');
+      if (!body || typeof body !== 'object' || !['mute', 'unmute', 'ban', 'unban', 'mute-ban'].includes(String(body.action))) throw new CommandError('Ongeldige moderatieactie.');
+      const action = body.action as ModerationAction | 'mute-ban';
+      const muting = action === 'mute' || action === 'mute-ban';
+      if (Object.keys(body).some(key => !['action', 'messageId', 'targetId', 'page', 'cursor', 'duration', 'recorded'].includes(key))) throw new CommandError('Onbekend actieveld.');
+      if (body.recorded !== undefined && (typeof body.recorded !== 'boolean' || muting || action === 'ban')) throw new CommandError('Ongeldig herstelveld.');
+      const duration = muting && typeof body.duration === 'number' ? body.duration : muting ? -1 : 30;
+      if (muting && ![0, 5, 30, 60, 300].includes(duration)) throw new CommandError('Ongeldige demptijd.');
       if (Date.now() < nextAction) throw new CommandError('Wacht drie seconden tussen moderatieacties.', 429);
       nextAction = Date.now() + 3000;
       let target: ModerationTarget;
       let name: string;
-      if (action === 'mute' || action === 'ban') {
+      let displayName: string | undefined;
+      if (muting || action === 'ban') {
         const message = session.snapshot().messages.find(item => item.id === body.messageId);
         if (!message?.userId || !message.secUid) throw new CommandError('Dit LIVE-bericht mist geldige gebruikersgegevens.', 409);
         target = { userId: message.userId, secUid: message.secUid };
         name = message.user;
+        displayName = message.displayName;
       } else {
         const kind = action === 'unmute' ? 'muted' : 'blocked';
-        const list = await direct.withModeration(mod => mod.list(config.username, roomId, kind, Number(body.page || 0), String(body.cursor || '')));
-        const entry = list.users.find(item => item.userId === body.targetId);
-        if (entry) { target = entry; name = entry.name || entry.userId; }
+        const list = body.recorded === true ? undefined
+          : await direct.withModeration(mod => mod.list(config.username, roomId, kind, Number(body.page || 0), String(body.cursor || '')));
+        const entry = list?.users.find(item => item.userId === body.targetId);
+        if (entry) { target = entry; name = identity(entry.userId).username || entry.name || entry.userId; }
         else {
-          const recorded = action === 'unmute' && feedback().entries.find(item => item.userId === body.targetId
-            && item.action === 'mute' && item.status === 'accepted' && (item.expiresAt === undefined || item.expiresAt > Date.now()));
+          const axis = action === 'unmute' ? 'mute' : 'ban';
+          const recorded = restriction(body.targetId, axis);
           if (!recorded || !active()) throw new CommandError('De gebruiker staat niet meer op deze moderatielijst. Vernieuw de lijst.', 409);
-          const message = session.snapshot().messages.find(item => item.userId === recorded.userId && item.secUid);
+          const message = session.snapshot().messages.findLast(item => item.userId === recorded.userId && item.secUid);
           const trusted = message?.secUid ? { userId: recorded.userId, secUid: message.secUid } : targets.get(recorded.userId);
-          if (!trusted) throw new CommandError('Het dashboard kent deze demping, maar mist vertrouwde gebruikersgegevens om veilig te herstellen. Controleer TikTok.', 409);
+          if (!trusted) throw new CommandError('Het dashboard kent deze beperking, maar mist vertrouwde gebruikersgegevens om veilig te herstellen. Controleer TikTok.', 409);
           target = trusted;
           name = recorded.name;
-          recordedRestore = recorded.userId;
+          recordedRestore = { userId: recorded.userId, action: axis };
         }
+        displayName = identity(target.userId).displayName;
       }
-      const before = audit.list(1)[0]?.id;
+      const before = JSON.stringify(feedback().entries);
       let result: { accepted: true };
       try {
-        result = await direct.withModeration(mod => auditedModeration(audit, {
-          actor: { id: user.id, name: user.name.slice(0, 100) }, target: { id: target.userId, name: name.slice(0, 100) }, roomId,
-          action, ...(action === 'mute' ? { duration } : {})
-        }, () => mod.act(config.username, roomId, action, target, duration, active)));
-        if (action === 'mute' && active()) {
-          targets.delete(target.userId);
-          targets.set(target.userId, { ...target });
-          if (targets.size > 1000) targets.delete(targets.keys().next().value!);
-        } else if (action === 'unmute') targets.delete(target.userId);
+        result = await direct.withModeration(async mod => {
+          const perform = async (step: ModerationAction) => {
+            if (!active()) throw new DirectTikTokError('inactive');
+            const value = await auditedModeration(audit, {
+              actor: { id: user.id, name: user.name.slice(0, 100) },
+              target: { id: target.userId, name: name.slice(0, 100), ...(displayName ? { displayName } : {}) }, roomId,
+              action: step, ...(step === 'mute' ? { duration } : {})
+            }, () => mod.act(config.username, roomId, step, target, duration, active));
+            if ((step === 'mute' || step === 'ban') && active()) {
+              targets.delete(target.userId);
+              targets.set(target.userId, { ...target });
+              if (targets.size > 1000) targets.delete(targets.keys().next().value!);
+            } else if (!restriction(target.userId, 'mute') && !restriction(target.userId, 'ban')) targets.delete(target.userId);
+            return value;
+          };
+          if (action === 'mute-ban') {
+            await perform('mute');
+            acceptedMute = true;
+            return perform('ban');
+          }
+          return perform(action);
+        });
       } finally {
-        const latest = audit.list(1)[0];
-        if (latest && latest.id !== before && (latest.status === 'accepted' || latest.status === 'uncertain')) changed?.(feedback());
+        const current = feedback();
+        if (JSON.stringify(current.entries) !== before) changed?.(current);
       }
       reply(200, result);
     } catch (error) {
       const status = error instanceof CommandError ? error.status : error instanceof OperationBusyError ? 429
         : error instanceof DirectTikTokError ? ['permission', 'target-role'].includes(error.kind) ? 403 : 502 : 503;
-      reply(status, { error: error instanceof CommandError || error instanceof OperationBusyError || error instanceof AuditOutcomeUnknownError
-        ? error.message : error instanceof DirectTikTokError ? directErrorText(error) : 'Moderatie kon niet veilig worden afgerond. Er is geen automatische herhaling.' });
+      const reason = error instanceof CommandError || error instanceof OperationBusyError || error instanceof AuditOutcomeUnknownError
+        ? error.message : error instanceof DirectTikTokError ? directErrorText(error) : 'Moderatie kon niet veilig worden afgerond. Er is geen automatische herhaling.';
+      reply(status, { error: `${acceptedMute ? 'Demping is door de API geaccepteerd; blokkeren is niet bevestigd. ' : ''}${reason}`,
+        ...(acceptedMute ? { partial: true, completed: ['mute'] } : {}) });
     }
     return true;
   };

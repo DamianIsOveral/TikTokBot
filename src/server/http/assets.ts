@@ -9,6 +9,7 @@ const assets = new Map<string, [URL, string]>([
   ['/shared/moderation-policy.js', [new URL('dist/browser/shared/moderation-policy.js', root), 'text/javascript; charset=utf-8']],
   ['/shared/filter-settings.js', [new URL('dist/browser/shared/filter-settings.js', root), 'text/javascript; charset=utf-8']],
   ['/shared/branding.js', [new URL('dist/browser/shared/branding.js', root), 'text/javascript; charset=utf-8']],
+  ['/shared/user-identity.js', [new URL('dist/browser/shared/user-identity.js', root), 'text/javascript; charset=utf-8']],
   ['/', [new URL('public/index.html', root), 'text/html; charset=utf-8']],
   ['/login', [new URL('public/login.html', root), 'text/html; charset=utf-8']],
   ['/styles.css', [new URL('public/styles.css', root), 'text/css; charset=utf-8']],
@@ -22,7 +23,7 @@ const assets = new Map<string, [URL, string]>([
   ['/branding.css', [new URL('public/branding.css', root), 'text/css; charset=utf-8']],
   ['/layout.css', [new URL('public/layout.css', root), 'text/css; charset=utf-8']]
 ]);
-for (const name of ['app', 'connection', 'dom', 'filters', 'model', 'pages', 'render', 'demo', 'commands', 'auth', 'login', 'access', 'capabilities', 'moderation', 'message-actions', 'preferences', 'unsaved','diagnostics','credentials','command-status','filter-editor','live-activity','branding','layout','moderation-feedback']) {
+for (const name of ['app', 'connection', 'dom', 'filters', 'model', 'pages', 'render', 'demo', 'commands', 'auth', 'login', 'access', 'capabilities', 'moderation', 'message-actions', 'preferences', 'unsaved','diagnostics','credentials','command-status','filter-editor','live-activity','branding','layout','moderation-feedback','user-identity','moderation-identity']) {
   assets.set(`/assets/${name}.js`, [new URL(`dist/browser/client/${name}.js`, root), 'text/javascript; charset=utf-8']);
 }
 

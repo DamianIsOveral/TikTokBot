@@ -3,9 +3,10 @@ import { state } from './model.js';
 import type { AuditEntry } from '../shared/moderation.js';
 import type { ModerationFeedbackSnapshot } from '../shared/moderation-feedback.js';
 import { activeDashboardMutes, applyModerationFeedback, moderationBadges, moderationGeneration, subscribeModerationFeedback } from './moderation-feedback.js';
+import {moderationIdentity} from './moderation-identity.js';
 
 interface Access { connected: boolean; enabled: boolean; mute: boolean; ban: boolean; reason: string }
-interface List { users: { userId: string; name: string }[]; hasMore: boolean; cursor: string }
+interface List { users: { userId: string; name: string; username?:string; displayName?:string }[]; hasMore: boolean; cursor: string }
 const actionNames = { mute: 'Dempen', unmute: 'Dempen opheffen', ban: 'Blokkeren', unban: 'Deblokkeren' };
 let pendingAccess: Promise<void> | undefined;
 
@@ -42,13 +43,18 @@ async function action(input: Record<string, unknown>): Promise<void> {
   if (!response.ok) throw new Error(result.error || 'Moderatie mislukt.');
 }
 
-export async function moderateMessage(actionName: 'mute' | 'ban', messageId: number, duration: number): Promise<boolean> {
+export async function moderateMessage(actionName: 'mute' | 'ban' | 'mute-ban', messageId: number, duration: number): Promise<boolean> {
   try {
-    await action({ action: actionName, messageId, ...(actionName === 'mute' ? { duration } : {}) });
+    await action({ action: actionName, messageId, ...(actionName !== 'ban' ? { duration } : {}) });
     const message = state.messages.find(item => item.id === messageId);
-    toast(`@${message?.user || 'gebruiker'}: ${actionNames[actionName]}${actionName === 'mute' ? duration === 0 ? ' voor deze LIVE' : ` voor ${duration}s` : ''} door TikTok geaccepteerd.`);
+    toast(`@${message?.user || 'gebruiker'}: ${actionName === 'mute-ban' ? 'Dempen en blokkeren' : actionNames[actionName]}${actionName !== 'ban' ? duration === 0 ? ' voor deze LIVE' : ` (demptijd ${duration}s)` : ''} door TikTok geaccepteerd.`);
     return true;
   } catch (error) { toast(error instanceof Error ? error.message : 'Moderatie mislukt.'); return false; }
+}
+
+export async function restoreMessage(actionName: 'unmute' | 'unban', targetId: string): Promise<void> {
+  await action({ action: actionName, targetId, recorded: true });
+  toast(`${actionNames[actionName]} door TikTok geaccepteerd.`);
 }
 
 export function mountModeration(): void {
@@ -64,6 +70,7 @@ export function mountModeration(): void {
         <div class="moderation-list-body" data-muted></div></section>
       <section class="moderation-panel" aria-labelledby="blocked-title"><div class="moderation-panel-heading">
         <h3 id="blocked-title">Geblokkeerde gebruikers</h3><span class="moderation-count" data-count-blocked>—</span></div>
+        <div class="moderation-source">TikTok-lijst · huidige pagina</div>
         <div class="moderation-list-body" data-blocked></div></section>
     </div>
     <p class="moderation-note">Dempen geldt voor de gekozen tijd of de gehele LIVE. Een blokkering hef je apart op.
@@ -86,7 +93,7 @@ export function mountModeration(): void {
     const node = find('[data-dashboard-mutes]');
     node.hidden = entries.length === 0;
     node.innerHTML = `<h4>Via dashboard gedempt (${entries.length})</h4><p>Door TikTok geaccepteerd. Verwachte eindtijd; acties buiten dit dashboard worden niet gevolgd.</p><ul>`
-      + entries.map(entry => `<li><div><strong>@${escapeHTML(entry.name)}</strong><span class="moderation-feedback" data-moderation-user="${escapeHTML(entry.userId)}" data-moderation-axis="mute">${moderationBadges(entry.userId,'mute')}</span></div>
+      + entries.map(entry => `<li><div>${moderationIdentity(entry.userId,entry.name,entry.displayName,entry.name)}<span class="moderation-feedback" data-moderation-user="${escapeHTML(entry.userId)}" data-moderation-axis="mute">${moderationBadges(entry.userId,'mute')}</span></div>
         <button data-tracked-unmute="${escapeHTML(entry.userId)}" ${!state.moderation?.mute ? 'disabled' : ''}>Dempen opheffen</button></li>`).join('') + '</ul>';
   }
   subscribeModerationFeedback(paintDashboardMutes, () => root.isConnected);
@@ -118,7 +125,8 @@ export function mountModeration(): void {
           <td><strong>${escapeHTML(entry.actor.name)}</strong><small>${escapeHTML(entry.actor.id)}</small></td>
           <td><strong>${escapeHTML(actionNames[entry.action])}${entry.action === 'mute'
             ? entry.duration === 0 ? ' · gehele LIVE' : ` · ${entry.duration}s` : ''}</strong>
-            <span>${escapeHTML(entry.target.name)}</span><small>${escapeHTML(entry.target.id)}</small></td>
+            <span>${moderationIdentity(entry.target.id,entry.target.name,entry.target.displayName,
+              entry.action === 'mute' || entry.action === 'ban' ? entry.target.name : undefined)}</span><small>${escapeHTML(entry.target.id)}</small></td>
           <td><span class="moderation-result" data-result="${escapeHTML(entry.status)}">${escapeHTML(statusNames[entry.status])}</span>
             ${entry.reason ? `<small>${escapeHTML(entry.reason)}</small>` : ''}</td></tr>`).join('')
         + '</tbody></table>' : '<p class="moderation-empty">Nog geen moderatieacties.</p>';
@@ -159,11 +167,11 @@ export function mountModeration(): void {
         const row = document.createElement('li');
         row.className = 'moderation-user';
         const label = document.createElement('span');
-        label.textContent = user.name || user.userId;
-        label.title = user.name || user.userId;
+        label.innerHTML = moderationIdentity(user.userId,user.name,user.displayName,user.username);
+        label.title = user.username ? `@${user.username}` : user.name || user.userId;
         const button = document.createElement('button');
         button.textContent = actionNames[restore];
-        button.setAttribute('aria-label', `${actionNames[restore]}: ${user.name || user.userId}`);
+        button.setAttribute('aria-label', `${actionNames[restore]}: ${user.displayName || user.name || user.userId}${user.username ? ` (@${user.username})` : ''}`);
         button.disabled = !state.liveMode || !result.enabled || !(kind === 'muted' ? result.mute : result.ban);
         button.onclick = async () => {
           button.disabled = true;

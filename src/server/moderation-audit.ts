@@ -31,8 +31,10 @@ function normalizeInput(value: unknown): AuditInput {
   if (typeof data.action !== 'string' || !actions.has(data.action)) invalid();
   const action = data.action as AuditInput['action'];
   if (action === 'mute' ? typeof data.duration !== 'number' || !durations.has(data.duration) : data.duration !== undefined) invalid();
+  const displayName = target.displayName === undefined ? undefined : text(target.displayName, 100);
+  if (displayName && /[\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/.test(displayName)) invalid();
   return { actor: { id: actorId, name: actorName },
-    target: { id: text(target.id, 25, /^\d{1,25}$/), name: text(target.name, 100) },
+    target: { id: text(target.id, 25, /^\d{1,25}$/), name: text(target.name, 100), ...(displayName ? { displayName } : {}) },
     roomId: text(data.roomId, 25, /^\d{10,25}$/), action,
     ...(action === 'mute' ? { duration: data.duration as number } : {}) };
 }
