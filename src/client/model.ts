@@ -5,7 +5,7 @@ import { displayTime } from './dom.js';
 import type { ChatCapabilities } from '../shared/capabilities.js';
 
 export type Page = 'Overzicht' | 'Livechat' | 'Moderatie' | 'Filters' | 'Commands' | 'Toegang' | 'Instellingen';
-export interface Message { id: number; user: string; displayName?:string; avatarUrl?:string; text: string; time: string; resolved: boolean; manualReview?: boolean; userId?: string; secUid?: string; isBot?: boolean;isModerator?:boolean }
+export interface Message { id: number; user: string; displayName?:string; avatarUrl?:string; text: string; time: string; resolved: boolean; reviewDuration?:number; manualReview?: boolean; userId?: string; secUid?: string; isBot?: boolean;isModerator?:boolean }
 interface DashboardState {
   settings: FilterSettings;
   messages: Message[];

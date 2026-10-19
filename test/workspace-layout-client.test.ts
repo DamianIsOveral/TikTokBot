@@ -7,6 +7,7 @@ type Event = {target?:Node;key?:string;button?:number;pointerId?:number;clientX?
 type Handler = (event:Event)=>void;
 
 class Node {
+  id = '';
   children:Node[] = [];
   parentElement:Node | null = null;
   dataset:Record<string,string> = {};
@@ -23,6 +24,7 @@ class Node {
   min = '';
   max = '';
   clientWidth = 1400;
+  clientHeight = 420;
   offsetWidth = 12;
   scrollTop = 0;
   rect = {left:0,top:100,width:280,height:400};
@@ -80,7 +82,7 @@ async function fixture(t:TestContext,options:{saved?:string;legacy?:string;width
     assert.ok(node,`Missing fixture element ${selector}`);
     return node;
   };
-  for (const selector of ['#chatpage','#chat-panel','#review-panel','#activity-panel','#chat-resize','#layout-status',
+  for (const selector of ['#chatpage','#chat-panel','#review-panel','#activity-panel','#activity-resize','#chat-resize','#layout-status',
     '#layout-preset','#layout-reset','#toast','header','.demo','#layout-mode','#layout-visible','#layout-order',
     '#layout-stack-first','#layout-activity','#layout-share','#layout-chat-height','#layout-review-height',
     '#layout-activity-height','#layout-activity-width','#layout-options','#layout-options>summary','#layout-close','.display-preferences']) nodes.set(selector,new Node());
@@ -94,7 +96,7 @@ async function fixture(t:TestContext,options:{saved?:string;legacy?:string;width
   const separator = get('#chat-resize');
   columns.clientWidth=options.width ?? 1400;
   const main = new Node();main.append(columns);
-  columns.append(chat,separator,review);review.append(activity);
+  columns.append(chat,separator,review);review.append(get('#activity-resize'),activity);
   activity.hidden=options.hidden ?? false;
   const chatMessage = new Node();chatMessage.textContent='Existing chat message';chat.append(chatMessage);
   const reviewButton = new Node();reviewButton.textContent='Existing review action';review.append(reviewButton);
@@ -109,7 +111,7 @@ async function fixture(t:TestContext,options:{saved?:string;legacy?:string;width
   const observed:Node[] = [];
   const body = new Node();
   const globals = {
-    document:{querySelector:(selector:string)=>nodes.get(selector) ?? null,body},
+    document:{querySelector:(selector:string)=>nodes.get(selector) ?? null,body,addEventListener:()=>{}},
     window:{innerHeight:900,scrollY:0,addEventListener:(name:string,handler:()=>void)=>windowListeners.set(name,handler)},
     localStorage:{
       getItem:(name:string)=>{if(options.blocked)throw new Error('Storage denied');return storage.get(name) ?? null;},
@@ -164,7 +166,8 @@ test('workspace keeps separate desktop and stacked orders and preserves live pan
   assert.equal(f.filter.value,'gift');
   f.reviewButton.fire('click');f.filter.fire('change');
   assert.equal(actions,2);
-  assert.deepEqual(f.observed,[f.columns,f.get('header'),f.get('.demo')]);
+  for (const node of [f.columns,f.get('header'),f.get('.demo')]) assert.ok(f.observed.includes(node));
+  assert.equal(f.get('#activity-resize').parentElement,f.chat);
 });
 
 test('layout menu can be dismissed without changing settings and does not overlap display preferences',async t=>{
@@ -190,6 +193,7 @@ test('activity always follows the visible panel and reparents the same live node
   assert.equal(f.get('#layout-activity').value,'review');
   f.change('visible','review');f.change('activity','chat');
   assert.equal(f.activity.parentElement,f.review);
+  assert.equal(f.get('#activity-resize').parentElement,f.review);
   assert.equal(f.chat.classList.contains('layout-hidden'),true);
   f.change('activity','bottom');
   assert.equal(f.activity.parentElement,f.columns);
@@ -338,7 +342,7 @@ test('hidden page startup defers geometry and applies preferences when the works
   assert.equal(f.columns.dataset.flow,undefined);
   assert.equal(f.columns.properties.has('--workspace-height'),false);
   f.columns.clientWidth=1400;f.main.scrollTop=25;f.resize();
-  assert.deepEqual(f.columns.children,[f.review,f.separator,f.chat,f.activity]);
+  assert.deepEqual(f.columns.children,[f.review,f.separator,f.chat,f.get('#activity-resize'),f.activity]);
   assert.equal(f.columns.dataset.activity,'bottom');
   assert.equal(f.columns.properties.get('--workspace-height'),'759px');
   assert.equal(f.writes.length,0);

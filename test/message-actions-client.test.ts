@@ -12,7 +12,10 @@ test('message menu restores only confirmed restrictions and submits no remote li
     listeners = new Map<string,(event: {target:Node})=>void>();
     classList = {add:()=>{},remove:()=>{}};
     style: Record<string,string> = {};
-    setAttribute() {}
+    attributes=new Map<string,string>();
+    focused=false;
+    focus(){this.focused=true;}
+    setAttribute(name:string,value:string) {this.attributes.set(name,value);}
     addEventListener(name: string, handler: (event: {target:Node})=>void) { this.listeners.set(name,handler); }
     matches() { return this.open; }
     showPopover() { this.open=true; }
@@ -25,13 +28,16 @@ test('message menu restores only confirmed restrictions and submits no remote li
   }
   const menu = new Node();
   const toast = new Node();
+  const chatTrigger=new Node();
+  const reviewTrigger=new Node();
   let elapsed = 0;
   let confirmation = true;
   let partial = false;
   const globals = {
     Element:Node,innerWidth:1280,innerHeight:900,performance:{now:()=>elapsed},window:{confirm:()=>confirmation},
-    document:{createElement:()=>menu,body:{append:()=>{}},querySelector:(selector:string)=>selector==='#toast'?toast:null,
-      querySelectorAll:()=>[],activeElement:null},
+    document:{createElement:()=>menu,body:{append:()=>{}},querySelector:(selector:string)=>selector==='#toast'?toast
+      : selector==='#reviews [data-menu="1"]'?reviewTrigger:selector==='#chat [data-menu="1"]'?chatTrigger:null,
+      querySelectorAll:(selector:string)=>selector==='[data-menu="1"]'?[chatTrigger,reviewTrigger]:[],activeElement:null},
     setTimeout:()=>1,clearTimeout:()=>{}
   };
   for (const [key,value] of Object.entries(globals)) {
@@ -127,4 +133,12 @@ test('message menu restores only confirmed restrictions and submits no remote li
   state.serverConnected=false;elapsed=8000;feedback.applyModerationFeedback(snapshot());
   assert.doesNotMatch(menu.innerHTML,/data-menu-action="unban"/);
   assert.ok(requests.every(url=>url==='/api/moderation'));
+  await actions.open(1,{x:120,y:80},'reviews');
+  assert.equal(reviewTrigger.attributes.get('aria-expanded'),'true');
+  assert.equal(chatTrigger.attributes.get('aria-expanded'),'true');
+  const keydown=menu.listeners.get('keydown') as unknown as (event:{key:string;preventDefault:()=>void})=>void;
+  keydown({key:'Escape',preventDefault:()=>{}});
+  assert.equal(reviewTrigger.focused,true);
+  assert.equal(chatTrigger.focused,false);
+  assert.equal(reviewTrigger.attributes.get('aria-expanded'),'false');
 });

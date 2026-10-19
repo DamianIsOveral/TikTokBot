@@ -174,6 +174,12 @@ element('#tabs').addEventListener('click', event => {
   render();
 });
 element('#reviews').addEventListener('click', async event => {
+  const trigger = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-menu]') : null;
+  if (trigger) {
+    const box=trigger.getBoundingClientRect();
+    await messageActions.open(Number(trigger.dataset.menu),{x:box.right,y:box.top},'reviews');
+    return;
+  }
   const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-action]') : null;
   const message = state.messages.find(item => item.id === Number(button?.dataset.id));
   if (!button || !message || message.resolved) return;
@@ -182,6 +188,12 @@ element('#reviews').addEventListener('click', async event => {
   if (action !== 'mute' && action !== 'ban' && action !== 'mute-ban' && action !== 'ignore') return;
   button.disabled = true;
   await messageActions.perform(action, message.id, duration);
+});
+element('#reviews').addEventListener('change',event=>{
+  const select=event.target instanceof HTMLSelectElement ? event.target : null;
+  const message=state.messages.find(item=>item.id===Number(select?.dataset.reviewDuration));
+  const duration=Number(select?.value);
+  if(message && [0,5,30,60,300].includes(duration)) message.reviewDuration=duration;
 });
 document.querySelectorAll<HTMLButtonElement>('[data-page]').forEach(button => {
   button.onclick = async () => {

@@ -10,7 +10,7 @@ test('workspace preferences validate saved choices and bound all dimensions',()=
   const value=settings.normalizeWorkspace({mode:'columns',visible:'review',order:'review',stackFirst:'review',activity:'column',
     split:99,chatHeight:0,reviewHeight:999999,activityHeight:-99,activityWidth:NaN});
   assert.deepEqual(value,{...settings.defaultWorkspace,mode:'columns',visible:'review',order:'review',stackFirst:'review',activity:'column',
-    split:80,chatHeight:240,reviewHeight:960,activityHeight:120});
+    split:80,chatHeight:240,reviewHeight:960,activityHeight:80});
   const restored=settings.normalizeWorkspace(JSON.parse(JSON.stringify({...value,activityWidth:380})));
   assert.equal(restored.activityWidth,380);
 });

@@ -24,9 +24,11 @@ const assets = new Map<string, [URL, string]>([
   ['/activity.css', [new URL('public/activity.css', root), 'text/css; charset=utf-8']],
   ['/branding.css', [new URL('public/branding.css', root), 'text/css; charset=utf-8']],
   ['/layout.css', [new URL('public/layout.css', root), 'text/css; charset=utf-8']],
-  ['/density.css', [new URL('public/density.css', root), 'text/css; charset=utf-8']]
+  ['/density.css', [new URL('public/density.css', root), 'text/css; charset=utf-8']],
+  ['/review-actions.css', [new URL('public/review-actions.css', root), 'text/css; charset=utf-8']],
+  ['/activity-resize.css', [new URL('public/activity-resize.css', root), 'text/css; charset=utf-8']]
 ]);
-for (const name of ['app', 'connection', 'dom', 'filters', 'model', 'pages', 'render', 'demo', 'commands', 'auth', 'login', 'access', 'capabilities', 'moderation', 'message-actions', 'preferences', 'unsaved','diagnostics','credentials','command-status','filter-editor','live-activity','branding','layout','workspace-layout','workspace-settings','moderation-feedback','user-identity','moderation-identity']) {
+for (const name of ['app', 'connection', 'dom', 'filters', 'model', 'pages', 'render', 'demo', 'commands', 'auth', 'login', 'access', 'capabilities', 'moderation', 'message-actions', 'preferences', 'unsaved','diagnostics','credentials','command-status','filter-editor','live-activity','branding','layout','workspace-layout','workspace-settings','activity-resize','moderation-feedback','user-identity','moderation-identity']) {
   assets.set(`/assets/${name}.js`, [new URL(`dist/browser/client/${name}.js`, root), 'text/javascript; charset=utf-8']);
 }
 

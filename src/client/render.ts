@@ -8,17 +8,18 @@ import {usernameColor} from '../shared/username-color.js';
 import {moderationBadges, moderationEntries} from './moderation-feedback.js';
 import {displayName, avatarHTML} from './user-identity.js';
 
-function actionButtons(message: Message): string {
+export function actionButtons(message: Message): string {
   const mute = moderationDisabledReason(state, message, 'mute');
   const ban = moderationDisabledReason(state, message, 'ban');
   const reasons = [...new Set([mute, ban].filter(Boolean))];
-  return `<div class="actions"><button class="mute" data-action="mute" data-id="${message.id}" ${mute ? 'disabled' : ''}
+  const duration = [0,5,30,60,300].includes(message.reviewDuration ?? 30) ? message.reviewDuration ?? 30 : 30;
+  return `<div class="actions review-actions"><button class="mute review-quick-mute" data-action="mute" data-id="${message.id}" ${mute ? 'disabled' : ''}
     title="${escapeHTML(mute)}">Dempen${state.liveMode ? '' : ' · demo'}</button>
-    <button data-action="ban" data-id="${message.id}" ${ban ? 'disabled' : ''} title="${escapeHTML(ban)}">Blokkeren${state.liveMode ? '' : ' · demo'}</button>
-    <button data-action="mute-ban" data-id="${message.id}" ${mute || ban ? 'disabled' : ''} title="${escapeHTML(mute || ban || 'Eerst dempen met de gekozen demptijd, daarna blokkeren.')}">Dempen en blokkeren${state.liveMode ? '' : ' · demo'}</button>
-    <button data-action="ignore" data-id="${message.id}">Negeren</button>
-    <select aria-label="Demptijd voor ${escapeHTML(message.user)}"><option value="30">30 seconden</option><option value="5">5 seconden</option>
-    <option value="60">1 minuut</option><option value="300">5 minuten</option><option value="0">Gehele LIVE</option></select>
+    <button class="review-secondary" data-action="ban" data-id="${message.id}" ${ban ? 'disabled' : ''} title="${escapeHTML(ban)}">Blokkeren${state.liveMode ? '' : ' · demo'}</button>
+    <button class="review-secondary" data-action="mute-ban" data-id="${message.id}" ${mute || ban ? 'disabled' : ''} title="${escapeHTML(mute || ban || 'Eerst dempen met de gekozen demptijd, daarna blokkeren.')}">Dempen en blokkeren${state.liveMode ? '' : ' · demo'}</button>
+    <button class="review-secondary" data-action="ignore" data-id="${message.id}">Negeren</button>
+    <select class="review-duration" data-review-duration="${message.id}" aria-label="Demptijd voor ${escapeHTML(message.user)}">${[[30,'30 s'],[5,'5 s'],[60,'1 min'],[300,'5 min'],[0,'Deze LIVE']].map(([value,label])=>`<option value="${value}" ${duration===value?'selected':''}>${label}</option>`).join('')}</select>
+    <button class="review-menu" data-menu="${message.id}" aria-label="Alle acties voor @${escapeHTML(message.user)}" aria-haspopup="menu" aria-controls="message-menu" aria-expanded="${state.menuMessageId===message.id}" title="Alle berichtacties">⋯</button>
     ${reasons.map(reason => `<small class="action-unavailable">${escapeHTML(reason)}</small>`).join('')}</div>`;
 }
 
