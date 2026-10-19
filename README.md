@@ -94,3 +94,5 @@ De broncode valt onder de [GNU GPL versie 3](LICENSE) (`GPL-3.0-only`).
 `npm run check` controleert types, bronlengte en verboden Git-bestanden. `npm test` gebruikt nepverzoeken en voert geen echte TikTok-acties uit. `npm run test:coverage` meet geladen server/shared-modules met Node zelf; minimum94% regels/90% branches/93% functies (frontend en nooit geïmporteerde modules vallen buiten deze meting). `npm run audit:prod` controleert runtime-dependencies op bekende kwetsbaarheden. GitHub Actions draait check/coverage/audit op Linux en Windows en bouwt/test een private Docker-container met fictieve credentials, inclusief beveiliging en databehoud. De workflows publiceren of deployen niets en hebben geen TikTok/Discord-secrets nodig.
 
 `npm run probe:tiktok -- --prepare-signed` en `npm run probe:tiktok-moderation -- --inspect @testaccount` zijn alleen-lezen diagnoses. De expliciete verzend-/moderatieproeven vragen aparte toestemming volgens AGENTS.md. Signerbronnen zijn op revisie en hashes vastgezet; TikToks echte SDK doet de ondertekening in een tijdelijk Node-proces. Geen automatische upstreamupdates of eigen signature-algoritme.
+
+Hey, ik ben FAY!
