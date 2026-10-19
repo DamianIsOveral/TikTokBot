@@ -31,6 +31,14 @@ test('dashboard en alle API-data zijn zonder login afgeschermd, ook zonder OAuth
   assert.equal(root.status, 302);
   assert.equal(root.headers.get('location'), '/login');
   assert.equal((await fetch(base + '/login')).status, 200);
+  for (const [path,type] of [['/theme.js','text/javascript'],['/theme.css','text/css']]) {
+    const response = await fetch(base + path);
+    assert.equal(response.status,200);
+    assert.match(response.headers.get('content-type') || '',new RegExp(type));
+  }
+  const login = await (await fetch(base + '/login')).text();
+  assert.ok(login.indexOf('src="/theme.js"') < login.indexOf('rel="stylesheet"'));
+  assert.match(login,/data-theme-mode/);
   assert.equal((await fetch(base + '/health')).status, 200);
   for (const path of ['/api/config', '/api/snapshot', '/api/events', '/api/commands', '/api/access']) {
     assert.equal((await fetch(base + path)).status, 401, path);

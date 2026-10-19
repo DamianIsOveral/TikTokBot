@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="/branding/icon">
   <title>Inloggen · Faynominaal Dashboard</title>
+  <script src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/theme.css">
 </head>
 <body class="login-page">
   <main class="login-panel panel">
@@ -15,6 +17,10 @@
     <p id="login-message" role="status">Loginstatus controleren…</p>
     <a id="discord-login" class="login-button hidden" href="/auth/login">Doorgaan met Discord</a>
     <p class="muted">We vragen alleen je Discord-identiteit op. Je Discord-wachtwoord wordt niet met dit dashboard gedeeld.</p>
+    <label class="theme-preference login-theme-preference" for="theme-mode">Kleurenthema
+      <select id="theme-mode" aria-label="Kleurenthema" data-theme-mode><option value="system">Systeem</option><option value="light">Licht</option><option value="dark">Donker</option></select>
+    </label>
+    <small id="theme-status" role="status" hidden></small>
   </main>
   <script type="module" src="/assets/login.js"></script>
 </body>
