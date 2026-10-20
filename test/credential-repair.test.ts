@@ -26,6 +26,7 @@ test('alleen Discordadmin kan herstel doen, API geeft nooit cookies terug en her
   const base=`http://127.0.0.1:${config.port}`;const url=base+'/api/bot-session';
   assert.equal((await fetch(url)).status,401);
   const member=authenticatedFetch(await signIn(config,MEMBER));assert.equal((await member(url)).status,403);
+  assert.equal((await member(url,{method:'POST',headers:{Origin:base,'Content-Type':'application/json','X-Requested-With':'faynominaal'},body:JSON.stringify(replacement)})).status,403);
   const admin=authenticatedFetch(await signIn(config));
   const post=(body:unknown,origin=base)=>admin(url,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','X-Requested-With':'faynominaal'},body:JSON.stringify(body)});
   assert.equal((await post(replacement,'https://evil.invalid')).status,403);

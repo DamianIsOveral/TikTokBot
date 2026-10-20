@@ -36,8 +36,12 @@ body.username-colors .user-color-10{color:#a4c8ff}body.username-colors .user-col
 .command-tags{display:flex;gap:6px;flex-wrap:wrap}
 .command-tags button{padding:5px 9px;font-size:12px;color:#a5dcf2}
 .command-limits p{font-size:13px;line-height:1.6}
-.credential-editor{margin:18px 0;padding:14px;border:1px solid var(--line);border-radius:9px}
+.credential-editor{margin:18px 0;padding:14px;border:1px solid var(--line);border-radius:9px;container-type:inline-size}
 .credential-editor summary{cursor:pointer;color:var(--cyan)}
+.credential-editor a{color:var(--cyan);font-size:13px;text-underline-offset:3px}
+.credential-editor form{margin:14px 0}
+.credential-editor input{min-width:0;max-width:100%}
+.credential-editor [data-clear-credentials]{margin-top:12px}
 .credential-editor [data-credential-status]{color:#a9d7e9;line-height:1.5}
 .button-primary{background:#17637b;border-color:#258eaa;color:#fff;font-weight:600}
 .button-danger{background:#3b2029;border-color:#a65367;color:#ffc3cf}

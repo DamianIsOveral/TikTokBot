@@ -84,7 +84,8 @@ test('HTTP beschermt secrets en weigert cross-origin mutaties', async t => {
       queue.push(new URL(match[1], base + path).pathname);
     }
   }
-  assert.equal(modules.size, 36);
+  assert.equal(modules.size, 37);
+  assert.ok(modules.has('/assets/sessionpack.js'));
   for (const path of ['/review-actions.css','/activity-resize.css']) {
     const asset=await fetch(base+path);
     assert.equal(asset.status,200);

@@ -1,0 +1,14 @@
+{
+  "format": "session-lantern",
+  "version": 1,
+  "kdf": {
+    "name": "PBKDF2-SHA256",
+    "iterations": 600000,
+    "salt": "Azu33yowbG81CJ1z981shA=="
+  },
+  "cipher": {
+    "name": "AES-256-GCM",
+    "iv": "qlwHJojL3d/Tkvmt"
+  },
+  "ciphertext": "JJi70LuemcO5FDFyOFG5ppFwtEDRHmhngIEj9d0UCCXN9emwwojEZoF59Pi87sZW1zAJamE1FMPGQT3opD7yVyIt6YA07yTS2ri5DoVLGy2s9U7XIzQv8bdxVMgnGhaVgVDksFVb9gGOtn1I3Cpvmv5RKoSVbkRpSqbUMnXTb2S/YF8vxWgEUfcCWfxEQ6RVTuypGd4swsZMOvA+PhxxdDVsfRNJ2N1j46eJ+THvbQQ1sXD6cfWbtPDxzsUQYcCBuRcTPkTaFUDdxwyIOJRdv5N9qrHnIC0zdA=="
+}
