@@ -10,6 +10,8 @@ export function mountCredentials(root:HTMLElement):void {
   section.innerHTML=`<details class="credential-editor"><summary>Botcookies herstellen (beheerder)</summary>
     <p>Importeer je versleutelde Session Lantern-export. Het exportwachtwoord blijft in deze browser.
     Controleren stopt de gedeelde LIVE, verifieert het ingestelde botaccount en bewaart de cookies privé op de server.</p>
+    <div class="credential-feedback" data-credential-feedback data-tone="saving" role="status" aria-live="polite" aria-atomic="true" tabindex="-1">
+    <strong data-credential-title>Beschikbaarheid controleren…</strong><p data-credential-status></p></div>
     <form data-sessionpack autocomplete="off"><h3>Session Lantern importeren</h3>
     <p><a href="https://github.com/Zeffuro/SessionLantern/releases" target="_blank" rel="noopener noreferrer">Session Lantern downloaden ↗</a></p><div class="command-fields">
     <label>Versleuteld bestand (.sessionpack, maximaal 64 KiB)<input data-sessionpack-file type="file" accept=".sessionpack" required></label>
@@ -23,8 +25,7 @@ export function mountCredentials(root:HTMLElement):void {
     <label>msToken<input data-cookie="msToken" type="password" required maxlength="1024" autocomplete="off" spellcheck="false"></label>
     <label>s_v_web_id / verifyFp<input data-cookie="verifyFp" type="password" required maxlength="200" autocomplete="off" spellcheck="false"></label>
     </div><button type="submit" disabled>Controleren en privé opslaan</button></form></details>
-    <button type="button" data-clear-credentials>Invoer wissen</button>
-    <p role="status" data-credential-status>Beschikbaarheid controleren…</p></details>`;
+    <button type="button" data-clear-credentials>Invoer wissen</button></details>`;
   root.append(section);
   const importForm=section.querySelector<HTMLFormElement>('[data-sessionpack]')!;
   const manualForm=section.querySelector<HTMLFormElement>('[data-manual-cookies]')!;
@@ -32,6 +33,12 @@ export function mountCredentials(root:HTMLElement):void {
   const passwordInput=section.querySelector<HTMLInputElement>('[data-sessionpack-password]')!;
   const clearButton=section.querySelector<HTMLButtonElement>('[data-clear-credentials]')!;
   const status=section.querySelector<HTMLElement>('[data-credential-status]')!;
+  const feedback=section.querySelector<HTMLElement>('[data-credential-feedback]')!;
+  const title=section.querySelector<HTMLElement>('[data-credential-title]')!;
+  const report=(tone:string,heading:string,message:string,focus=false)=>{
+    feedback.dataset.tone=tone;title.textContent=heading;status.textContent=message;
+    if(focus)feedback.focus();
+  };
   const fields=[...section.querySelectorAll<HTMLInputElement>('input')];
   const buttons=[...section.querySelectorAll<HTMLButtonElement>('button[type="submit"]')];
   let available=false,busy=false,generation=0;
@@ -44,9 +51,9 @@ export function mountCredentials(root:HTMLElement):void {
   const cancel=()=>{
     generation++;controller?.abort();controller=undefined;reset();updateControls();
   };
-  clearButton.onclick=()=>{cancel();status.textContent='Invoer gewist. Een al verstuurde controle kan op de server nog worden afgerond.';};
-  section.addEventListener('input',()=>{if(busy){cancel();status.textContent='Invoer gewijzigd; controle afgebroken. Controleer de sessiestatus als de aanvraag al verstuurd was.';}else generation++;});
-  section.addEventListener('change',()=>{if(busy){cancel();status.textContent='Invoer gewijzigd; controle afgebroken.';}else generation++;});
+  clearButton.onclick=()=>{cancel();report('info','Invoer gewist','Een al verstuurde controle kan op de server nog worden afgerond.');};
+  const changed=()=>{if(busy){cancel();report('warning','Controle afgebroken','Invoer gewijzigd. Controleer de sessiestatus als de aanvraag al verstuurd was.');}else generation++;};
+  section.addEventListener('input',changed);section.addEventListener('change',changed);
   const onPermissions=()=>{
     if(!isDashboardAdmin()){cancel();section.remove();}
   };
@@ -61,11 +68,11 @@ export function mountCredentials(root:HTMLElement):void {
     if(!response.ok)throw new Error();
     const value=await response.json() as {available:boolean;botUsername:string};
     available=value.available===true;
-    if(generation===availabilityGeneration&&isDashboardAdmin())status.textContent=available
+    if(generation===availabilityGeneration&&isDashboardAdmin())report(available?'info':'warning',available?'Klaar voor import':'Herstel niet beschikbaar',available
       ?`Verwacht botaccount: @${value.botUsername}. Kies een export of vul handmatig vier cookies in.`
-      :'Herstel is niet beschikbaar: stel eerst directe modus en privéopslag in op de server.';
+      :'Stel eerst directe modus en privéopslag in op de server.');
     updateControls();
-  }).catch(()=>{if(generation===availabilityGeneration)status.textContent='Beschikbaarheid ophalen mislukt.';});
+  }).catch(()=>{if(generation===availabilityGeneration)report('error','✕ Controle mislukt','Beschikbaarheid ophalen mislukt. Herlaad deze pagina om opnieuw te proberen.');});
 
   const submit=async(importing:boolean)=>{
     if(busy||!available||!isDashboardAdmin())return;
@@ -77,7 +84,7 @@ export function mountCredentials(root:HTMLElement):void {
       if(importing){
         let file=fileInput.files?.[0];let password=passwordInput.value;
         reset();
-        status.textContent='Bestand lokaal ontsleutelen… De LIVE wordt pas bij de servercontrole gestopt.';
+        report('saving','⏳ Import bezig','Bestand lokaal ontsleutelen… De LIVE wordt pas bij de servercontrole gestopt.');
         if(!file)throw new Error();
         try{cookies=await decryptSessionpack(file,password);}finally{file=undefined;password='';}
       }else{
@@ -86,18 +93,19 @@ export function mountCredentials(root:HTMLElement):void {
         reset();
       }
       if(!active())return;
-      status.textContent='Gedeelde LIVE stoppen; botaccount controleren en privé opslaan…';
+      report('saving','⏳ Botaccount controleren','Gedeelde LIVE stoppen; botaccount controleren en privé opslaan…');
       controller=new AbortController();submitted=true;
       const response=await fetch('/api/bot-session',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'faynominaal'},
         body:JSON.stringify(cookies),signal:AbortSignal.any([controller.signal,AbortSignal.timeout(30_000)])});
       clearSessionCookies(cookies);
       const result=await response.json() as {error?:string;capabilities?:ChatCapabilities};
       if(!active())return;
-      if(!response.ok){status.textContent=result.error||'Opslaan niet bevestigd. Controleer de botsessie.';return;}
+      if(!response.ok){report('error',importing?'✕ Import mislukt':'✕ Controle mislukt',result.error||'Opslaan niet bevestigd. Controleer de botsessie.',true);return;}
       if(result.capabilities)showChatAccess(result.capabilities);
-      status.textContent='Botcookies gecontroleerd en privé opgeslagen. Klik op Verbinden om de LIVE te hervatten.';
+      report('success',importing?'✓ Import geslaagd':'✓ Botcookies opgeslagen','Botcookies gecontroleerd en privé opgeslagen. Klik op Verbinden om de LIVE te hervatten.',true);
     }catch{
-      if(active())status.textContent=submitted?'Opslag is niet bevestigd. Controleer de sessiestatus voordat je opnieuw probeert.':sessionpackError;
+      if(active())report(submitted?'warning':'error',submitted?'⚠ Opslag niet bevestigd':'✕ Import mislukt',submitted
+        ?'Geen bevestiging van de server ontvangen. Controleer de sessiestatus voordat je opnieuw probeert.':sessionpackError,true);
     }finally{
       clearSessionCookies(cookies);
       if(current===generation)reset();

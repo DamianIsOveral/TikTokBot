@@ -23,11 +23,11 @@ body.username-colors .user-color-10{color:#a4c8ff}body.username-colors .user-col
 .command-help summary{cursor:pointer;color:#c5d4e3}
 .commands-editor .command-toolbar{position:sticky;top:-30px;z-index:2;display:block;margin:0;padding:12px 0;background:#111c25;border-bottom:1px solid var(--line);box-shadow:0 8px 12px #08101866}
 .command-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.commands-editor .command-feedback{padding:12px 14px;border:1px solid #41647b;border-left-width:4px;border-radius:8px;color:#b7d9ee;background:#152735;line-height:1.5}
-.commands-editor .command-feedback[data-tone=warning]{color:#ffd28a;background:#352a16;border-color:#bd8a37}
-.commands-editor .command-feedback[data-tone=success]{color:var(--success);background:#112e25;border-color:#3a956f}
-.commands-editor .command-feedback[data-tone=error]{color:var(--danger);background:#361c24;border-color:#bd596c}
-.commands-editor .command-feedback[data-tone=saving]{color:#b7e5ff;background:#132a3b;border-color:#4b95bf}
+.commands-editor .command-feedback,.credential-feedback{padding:12px 14px;border:1px solid #41647b;border-left-width:4px;border-radius:8px;color:#b7d9ee;background:#152735;line-height:1.5}
+.commands-editor .command-feedback[data-tone=warning],.credential-feedback[data-tone=warning]{color:#ffd28a;background:#352a16;border-color:#bd8a37}
+.commands-editor .command-feedback[data-tone=success],.credential-feedback[data-tone=success]{color:var(--success);background:#112e25;border-color:#3a956f}
+.commands-editor .command-feedback[data-tone=error],.credential-feedback[data-tone=error]{color:var(--danger);background:#361c24;border-color:#bd596c}
+.commands-editor .command-feedback[data-tone=saving],.credential-feedback[data-tone=saving]{color:#b7e5ff;background:#132a3b;border-color:#4b95bf}
 .commands-editor .command-external{padding:12px 14px;color:#ffd28a!important;border:1px solid #bd8a37;border-radius:8px;background:#352a16}
 .command-card.is-dirty{border-color:#bd8a37;border-left:4px solid var(--amber);background:#261f132e}
 .command-card.is-dirty legend{color:#ffd28a}
@@ -42,7 +42,7 @@ body.username-colors .user-color-10{color:#a4c8ff}body.username-colors .user-col
 .credential-editor form{margin:14px 0}
 .credential-editor input{min-width:0;max-width:100%}
 .credential-editor [data-clear-credentials]{margin-top:12px}
-.credential-editor [data-credential-status]{color:#a9d7e9;line-height:1.5}
+.credential-feedback{margin:14px 0;overflow-wrap:anywhere}.credential-feedback p{margin:4px 0 0;color:inherit}.credential-feedback:focus{outline:2px solid currentColor;outline-offset:3px}
 .button-primary{background:#17637b;border-color:#258eaa;color:#fff;font-weight:600}
 .button-danger{background:#3b2029;border-color:#a65367;color:#ffc3cf}
 [data-jump]{border-color:#bd8a37;color:#ffd28a}

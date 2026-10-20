@@ -108,20 +108,20 @@ html[data-theme=light]{
 
   .command-help summary,.activity-filter-options summary{color:var(--text)}
   .commands-editor .command-toolbar{background:var(--surface-soft);box-shadow:0 8px 12px #25445b0d}
-  .commands-editor .command-feedback,.access-editor [data-status],#otherpage .moderation-status{
+  .commands-editor .command-feedback,.credential-feedback,.access-editor [data-status],#otherpage .moderation-status{
     background:var(--accent-soft);color:var(--cyan);border-color:var(--accent-line);
   }
-  .commands-editor .command-feedback[data-tone=warning],.commands-editor .command-external,.commands-editor .command-safety-note{
+  .commands-editor .command-feedback[data-tone=warning],.credential-feedback[data-tone=warning],.commands-editor .command-external,.commands-editor .command-safety-note{
     background:var(--warning-soft);color:var(--amber)!important;border-color:var(--warning-line);
   }
-  .commands-editor .command-feedback[data-tone=success]{background:var(--success-soft);color:var(--success);border-color:var(--success-line)}
-  .commands-editor .command-feedback[data-tone=error]{background:var(--danger-soft);color:var(--danger);border-color:var(--danger-line)}
-  .commands-editor .command-feedback[data-tone=saving]{background:var(--accent-soft);color:var(--cyan);border-color:var(--accent-line)}
+  .commands-editor .command-feedback[data-tone=success],.credential-feedback[data-tone=success]{background:var(--success-soft);color:var(--success);border-color:var(--success-line)}
+  .commands-editor .command-feedback[data-tone=error],.credential-feedback[data-tone=error]{background:var(--danger-soft);color:var(--danger);border-color:var(--danger-line)}
+  .commands-editor .command-feedback[data-tone=saving],.credential-feedback[data-tone=saving]{background:var(--accent-soft);color:var(--cyan);border-color:var(--accent-line)}
   .command-card.is-dirty{background:var(--warning-soft);border-color:var(--warning-line)}
   .command-card.is-dirty legend{color:var(--amber)}
   .command-card :invalid:not(:disabled){border-color:var(--danger-line)}
   .command-tags button{color:var(--cyan)}
-  .credential-editor [data-credential-status]{color:var(--cyan)}
+
   .button-primary{background:#086b86;border-color:#086b86;color:#fff}
   .button-danger{background:var(--danger-soft);border-color:var(--danger-line);color:var(--danger)}
   [data-jump]{border-color:var(--warning-line);color:var(--amber)}
