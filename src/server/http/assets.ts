@@ -31,6 +31,7 @@ const assets = new Map<string, [URL, string]>([
 for (const name of ['app', 'connection', 'dom', 'filters', 'model', 'pages', 'render', 'demo', 'commands', 'auth', 'login', 'access', 'capabilities', 'moderation', 'message-actions', 'preferences', 'unsaved','diagnostics','credentials','command-status','filter-editor','live-activity','branding','layout','workspace-layout','workspace-settings','activity-resize','moderation-feedback','user-identity','moderation-identity']) {
   assets.set(`/assets/${name}.js`, [new URL(`dist/browser/client/${name}.js`, root), 'text/javascript; charset=utf-8']);
 }
+assets.set('/assets/sessionpack.js',[new URL('dist/browser/client/sessionpack.js',root),'text/javascript; charset=utf-8']);
 
 export async function serveAsset(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const asset = assets.get(req.url?.startsWith('/login?') ? '/login' : req.url || '');
