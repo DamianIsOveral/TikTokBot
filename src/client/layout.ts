@@ -12,6 +12,7 @@ function save(key: string, value: string): void {
 }
 
 export function initializeLayout(): void {
+  initializeToolbarMenus();
   const toggle = element<HTMLButtonElement>('#sidebar-toggle');
   const narrow = window.matchMedia('(max-width:1100px)');
   let sidebarPreference = saved(sidebarKey);
@@ -33,4 +34,21 @@ export function initializeLayout(): void {
   applySidebar();
 
   initializeWorkspace();
+}
+
+export function initializeToolbarMenus(): void {
+  const menus=[...document.querySelectorAll<HTMLDetailsElement>('.display-preferences,#layout-options,.test-options')];
+  for(const menu of menus) {
+    menu.addEventListener('toggle',()=>{
+      if(menu.open)for(const other of menus)if(other!==menu)other.open=false;
+    });
+    menu.addEventListener('keydown',event=>{
+      if(event.key!=='Escape'||!menu.open)return;
+      event.preventDefault();menu.open=false;menu.querySelector('summary')?.focus();
+    });
+  }
+  document.addEventListener('click',event=>{
+    const path=event.composedPath();
+    for(const menu of menus)if(menu.open&&!path.includes(menu))menu.open=false;
+  },{capture:true});
 }

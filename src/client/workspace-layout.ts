@@ -25,12 +25,8 @@ export function initializeWorkspace(): void {
   const activitySeparator = element('#activity-resize');
   const status = element('#layout-status');
   const menu = element<HTMLDetailsElement>('#layout-options');
-  const displayMenu = element<HTMLDetailsElement>('.display-preferences');
   const closeMenu = () => { menu.open = false;element('#layout-options>summary').focus(); };
   element('#layout-close').onclick = closeMenu;
-  menu.addEventListener('keydown',event => { if (event.key === 'Escape') { event.preventDefault();closeMenu(); } });
-  menu.addEventListener('toggle',() => { if (menu.open) displayMenu.open = false; });
-  displayMenu.addEventListener('toggle',() => { if (displayMenu.open) menu.open = false; });
   const persist = () => {
     try { localStorage.setItem(key,JSON.stringify(settings)); }
     catch { toast('De indeling is aangepast, maar kon niet worden bewaard.'); }

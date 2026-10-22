@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS build
+FROM node:24.22.1-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -9,7 +9,7 @@ COPY scripts ./scripts
 COPY test ./test
 RUN npm run typecheck && node scripts/check.ts && npm test && node scripts/cache-signing.ts && npm prune --omit=dev --ignore-scripts
 
-FROM node:24-bookworm-slim AS runtime
+FROM node:24.22.1-bookworm-slim AS runtime
 ENV NODE_ENV=production HOST=127.0.0.1 PORT=3000
 WORKDIR /app
 COPY --from=build /app/package.json ./
