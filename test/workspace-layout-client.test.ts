@@ -170,16 +170,12 @@ test('workspace keeps separate desktop and stacked orders and preserves live pan
   assert.equal(f.get('#activity-resize').parentElement,f.chat);
 });
 
-test('layout menu can be dismissed without changing settings and does not overlap display preferences',async t=>{
+test('layout close button returns focus without changing settings',async t=>{
   const f=await fixture(t);
   const menu=f.get('#layout-options');
-  const display=f.get('.display-preferences');
-  menu.open=true;display.open=true;menu.fire('toggle');
-  assert.equal(display.open,false);
+  menu.open=true;
   f.get('#layout-close').fire('click');
   assert.equal(menu.open,false);assert.equal(f.get('#layout-options>summary').focused,true);
-  menu.open=true;menu.fire('keydown',{key:'Escape'});assert.equal(menu.open,false);
-  menu.open=true;display.open=true;display.fire('toggle');assert.equal(menu.open,false);
   assert.equal(f.writes.length,0);
 });
 

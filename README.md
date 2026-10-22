@@ -2,6 +2,8 @@
 
 Eén lichte Node.js 24-app in TypeScript: TikTok LIVE-chat, commands, moderatie en een Discord-beveiligd dashboard. Geen Electron, browserproces, database of frontendframework.
 
+Gebruik Node.js 24.22.1 of nieuwer binnen de 24.x-reeks; deze minimumversie bevat de beveiligingsupdates van 21 oktober 2026.
+
 ```sh
 npm ci
 # Kopieer .env.example naar .env en vul de eigen instellingen in.

@@ -4,7 +4,7 @@ import { addSample, loadDemo } from './demo.js';
 import { addMessage, resetMessages, state } from './model.js';
 import type { Page } from './model.js';
 import type { Category } from './filters.js';
-import { createConnection } from './connection.js';
+import { createConnection, initializeStopButton } from './connection.js';
 import { render, scheduleRender } from './render.js';
 import { renderPage } from './pages.js';
 import { requireUser, canManageBot, canOpenPage } from './auth.js';
@@ -55,7 +55,11 @@ function updateConnection(data: StatusEvent | Snapshot): void {
   const connect = element<HTMLButtonElement>('#connect');
   connect.disabled = !canManageBot() || state.phase === 'connecting';
   connect.textContent = state.phase === 'connected' ? 'Livechat tonen' : 'Verbinden';
-  element<HTMLButtonElement>('#stop').disabled = !canManageBot() || !['connecting', 'connected', 'error', 'disconnected'].includes(state.phase);
+  updateStopAvailability();
+}
+
+function updateStopAvailability():void {
+  element<HTMLButtonElement>('#stop').disabled=!canManageBot()||!state.serverConnected||!['connecting','connected','error','disconnected'].includes(state.phase);
 }
 
 function onEvent(data: ClientEvent): void {
@@ -146,11 +150,7 @@ element('#connect').onclick = async () => {
   catch { toast('Verbinden mislukt. Controleer de serververbinding.'); }
   finally { element<HTMLButtonElement>('#connect').disabled = !canManageBot() || state.phase === 'connecting'; }
 };
-element('#stop').onclick = async () => {
-  if (!canManageBot()) return;
-  try { await connection.stop(); }
-  catch { toast('Stoppen mislukt. Controleer de serververbinding.'); }
-};
+initializeStopButton(()=>connection.stop(),updateStopAvailability);
 element('#add').onclick = () => { addSample(); render(); };
 element('#search').addEventListener('input', render);
 element('#sort').addEventListener('change', render);
