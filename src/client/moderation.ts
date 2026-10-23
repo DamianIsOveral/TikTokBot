@@ -4,6 +4,7 @@ import type { AuditEntry } from '../shared/moderation.js';
 import type { ModerationFeedbackSnapshot } from '../shared/moderation-feedback.js';
 import { activeDashboardMutes, applyModerationFeedback, moderationBadges, moderationGeneration, subscribeModerationFeedback } from './moderation-feedback.js';
 import {moderationIdentity} from './moderation-identity.js';
+import {requestModeration,validateModerationReply} from './moderation-api.js';
 
 interface Access { connected: boolean; enabled: boolean; mute: boolean; ban: boolean; reason: string }
 interface List { users: { userId: string; name: string; username?:string; displayName?:string }[]; hasMore: boolean; cursor: string }
@@ -19,15 +20,15 @@ export async function refreshModerationAccess(): Promise<void> {
   if (pendingAccess) return pendingAccess;
   const generation = moderationGeneration();
   pendingAccess = (async () => { try {
-    const response = await fetch('/api/moderation');
-    const access = await response.json() as Access & { error?: string; moderation?: ModerationFeedbackSnapshot };
-    if (!response.ok) throw new Error(access.error || 'Moderatierechten konden niet worden gecontroleerd.');
+    const reply=await requestModeration('/api/moderation','access');
+    const access=reply.value as unknown as Access & {moderation?:ModerationFeedbackSnapshot};
+    validateModerationReply(reply,['connected','enabled','mute','ban'].every(key=>typeof reply.value[key]==='boolean')&&typeof access.reason==='string');
     if (state.liveMode && state.serverConnected && state.phase === 'connected') {
       state.moderation = access;
       if (access.moderation) applyModerationFeedback(access.moderation, generation);
     }
   } catch (error) { state.moderation = { connected: false, enabled: false, mute: false, ban: false,
-    reason: error instanceof Error && error.message.length < 300 && !/fetch|network|json/i.test(error.message)
+    reason: error instanceof Error && error.message.length < 500 && !/fetch|network|json/i.test(error.message)
       ? error.message : 'Moderatierechten konden niet worden gecontroleerd.' }; }
   })().finally(() => { pendingAccess = undefined; });
   return pendingAccess;
@@ -36,11 +37,10 @@ export async function refreshModerationAccess(): Promise<void> {
 async function action(input: Record<string, unknown>): Promise<void> {
   if (!state.liveMode || !state.serverConnected || state.phase !== 'connected') throw new Error('Sluit de lokale test af en verbind met TikTok LIVE.');
   const generation = moderationGeneration();
-  const response = await fetch('/api/moderation', { method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'faynominaal' }, body: JSON.stringify(input) });
-  const result = await response.json() as { error?: string; moderation?: ModerationFeedbackSnapshot };
+  const reply=await requestModeration('/api/moderation',input.action as 'mute'|'unmute'|'ban'|'unban'|'mute-ban',input);
+  const result=reply.value as {moderation?:ModerationFeedbackSnapshot};
   if (result.moderation) applyModerationFeedback(result.moderation, generation);
-  if (!response.ok) throw new Error(result.error || 'Moderatie mislukt.');
+  validateModerationReply(reply,reply.value.accepted===true);
 }
 
 export async function moderateMessage(actionName: 'mute' | 'ban' | 'mute-ban', messageId: number, duration: number): Promise<boolean> {
@@ -112,9 +112,9 @@ export function mountModeration(): void {
 
   async function loadAudit() {
     try {
-      const response = await fetch('/api/moderation/audit');
-      if (!response.ok) throw new Error();
-      const result = await response.json() as { entries: AuditEntry[] };
+      const reply=await requestModeration('/api/moderation/audit','audit');
+      const result=reply.value as {entries:AuditEntry[]};
+      validateModerationReply(reply,Array.isArray(result.entries));
       if (!root.isConnected) return;
       const statusNames = { pending: 'Uitkomst nog niet bevestigd', accepted: 'Geaccepteerd', rejected: 'Geweigerd', uncertain: 'Uitkomst onbekend' };
       find('[data-audit]').innerHTML = result.entries.length ? `<table class="moderation-audit-table">
@@ -151,10 +151,11 @@ export function mountModeration(): void {
     try {
       const query = new URLSearchParams({ list: kind, page: String(page), cursor });
       const generation = moderationGeneration();
-      const response = await fetch(`/api/moderation?${query}`);
-      const result = await response.json() as Access & { list?: List; error?: string; moderation?: ModerationFeedbackSnapshot };
+      const reply=await requestModeration(`/api/moderation?${query}`,kind==='muted'?'muted-list':'blocked-list');
+      const result=reply.value as unknown as Access & {list?:List;moderation?:ModerationFeedbackSnapshot};
       if (result.moderation) applyModerationFeedback(result.moderation, generation);
-      if (!response.ok || !result.list) throw new Error(result.error || 'Lijst laden mislukt.');
+      validateModerationReply(reply,!!result.list&&Array.isArray(result.list.users)&&typeof result.list.hasMore==='boolean'&&typeof result.list.cursor==='string');
+      if(!result.list)return;
       if (!root.isConnected) return;
       const restore = kind === 'muted' ? 'unmute' : 'unban';
       const users = document.createElement('ul');

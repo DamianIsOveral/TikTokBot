@@ -32,6 +32,7 @@ for (const name of ['app', 'connection', 'dom', 'filters', 'model', 'pages', 're
   assets.set(`/assets/${name}.js`, [new URL(`dist/browser/client/${name}.js`, root), 'text/javascript; charset=utf-8']);
 }
 assets.set('/assets/sessionpack.js',[new URL('dist/browser/client/sessionpack.js',root),'text/javascript; charset=utf-8']);
+assets.set('/assets/moderation-api.js',[new URL('dist/browser/client/moderation-api.js',root),'text/javascript; charset=utf-8']);
 
 export async function serveAsset(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const asset = assets.get(req.url?.startsWith('/login?') ? '/login' : req.url || '');

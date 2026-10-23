@@ -14,6 +14,8 @@ import { auditedModeration, AuditOutcomeUnknownError } from '../moderation-actio
 import { OperationBusyError } from '../operation-queue.ts';
 import { moderationFeedback } from '../moderation-feedback.ts';
 import type { ModerationFeedbackSnapshot } from '../../shared/moderation-feedback.ts';
+import { randomUUID } from 'node:crypto';
+import { createModerationErrorReports, logModerationFailure, moderationOperation, moderationReference } from '../moderation-errors.ts';
 
 export function createModerationRoutes(config: AppConfig, direct: DirectChat | undefined,
   live: ReturnType<typeof createLive>, session: ReturnType<typeof createSession>, audit: AuditStore,
@@ -21,20 +23,32 @@ export function createModerationRoutes(config: AppConfig, direct: DirectChat | u
   let nextAction = 0;
   let cachedRoom: string | undefined;
   const targets = new Map<string, ModerationTarget>();
+  const reportError = createModerationErrorReports();
   return async function route(req: IncomingMessage, res: ServerResponse, user: DashboardUser, authorized: () => boolean): Promise<boolean> {
     const url = new URL(req.url || '/', 'http://localhost');
-    if (!['/api/moderation', '/api/moderation/audit'].includes(url.pathname)) return false;
+    if (!['/api/moderation', '/api/moderation/audit', '/api/moderation/errors'].includes(url.pathname)) return false;
+    const suppliedReference = req.headers['x-request-id'];
+    const reference = moderationReference(suppliedReference) ? suppliedReference : randomUUID();
+    res.setHeader('X-Request-ID', reference);
     res.setHeader('Content-Type', 'application/json');
+    if (url.pathname === '/api/moderation/errors') { await reportError(req, res); return true; }
+    let operation = url.pathname.endsWith('/audit') ? moderationOperation('audit')
+      : req.method === 'GET' ? moderationOperation(url.searchParams.get('list') === 'muted' ? 'muted-list'
+        : url.searchParams.get('list') === 'blocked' ? 'blocked-list' : 'access') : undefined;
     const feedback = () => moderationFeedback(audit, live.roomId);
-    const reply = (status: number, value: Record<string, unknown>) => {
-      res.writeHead(status).end(JSON.stringify({ ...value, ...(url.pathname === '/api/moderation' ? { moderation: feedback() } : {}) }));
+    const reply = (status: number, value: Record<string, unknown>, error?: unknown) => {
+      if (status >= 400) logModerationFailure(reference, operation, status, error, value.partial === true);
+      res.writeHead(status).end(JSON.stringify({ ...value, ...(status >= 400 ? { reference } : {}),
+        ...(url.pathname === '/api/moderation' ? { moderation: feedback() } : {}) }));
     };
     if (url.pathname === '/api/moderation/audit') {
       if (req.method !== 'GET') reply(405, { error: 'Alleen lezen toegestaan.' });
       else reply(200, { entries: audit.list() });
       return true;
     }
-    if (req.method !== 'GET' && !allowMutation(req, res)) return true;
+    if (req.method !== 'GET' && !allowMutation(req, res)) {
+      logModerationFailure(reference, operation, res.statusCode); return true;
+    }
     const roomId = live.roomId;
     if (cachedRoom !== roomId) { targets.clear(); cachedRoom = roomId; }
     if (!direct || !roomId) {
@@ -75,6 +89,7 @@ export function createModerationRoutes(config: AppConfig, direct: DirectChat | u
       const body = await readJson(req) as Record<string, unknown>;
       if (!body || typeof body !== 'object' || !['mute', 'unmute', 'ban', 'unban', 'mute-ban'].includes(String(body.action))) throw new CommandError('Ongeldige moderatieactie.');
       const action = body.action as ModerationAction | 'mute-ban';
+      operation = moderationOperation(action);
       const muting = action === 'mute' || action === 'mute-ban';
       if (Object.keys(body).some(key => !['action', 'messageId', 'targetId', 'page', 'cursor', 'duration', 'recorded'].includes(key))) throw new CommandError('Onbekend actieveld.');
       if (body.recorded !== undefined && (typeof body.recorded !== 'boolean' || muting || action === 'ban')) throw new CommandError('Ongeldig herstelveld.');
@@ -146,7 +161,7 @@ export function createModerationRoutes(config: AppConfig, direct: DirectChat | u
       const reason = error instanceof CommandError || error instanceof OperationBusyError || error instanceof AuditOutcomeUnknownError
         ? error.message : error instanceof DirectTikTokError ? directErrorText(error) : 'Moderatie kon niet veilig worden afgerond. Er is geen automatische herhaling.';
       reply(status, { error: `${acceptedMute ? 'Demping is door de API geaccepteerd; blokkeren is niet bevestigd. ' : ''}${reason}`,
-        ...(acceptedMute ? { partial: true, completed: ['mute'] } : {}) });
+        ...(acceptedMute ? { partial: true, completed: ['mute'] } : {}) }, error);
     }
     return true;
   };

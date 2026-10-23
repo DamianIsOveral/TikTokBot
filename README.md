@@ -79,6 +79,8 @@ Moderatie en log tonen waar bekend de zichtbare naam met de @gebruikersnaam eron
 
 Het moderatielog bewaart Discord-gebruiker, doel, actie, tijd, duur en resultaat. De intentie wordt vóór de TikTok-actie opgeslagen; bij opslagfalen wordt niet gehandeld. Onzekere resultaten blijven herkenbaar en worden niet opnieuw uitgevoerd. Maximaal 1000 gebeurtenissen/1 MiB, zonder cookies, tokens of ruwe API-antwoorden. CLI-proeven zijn apart herkenbaar als **CLI-test (geen Discordsessie)**. Dit log dekt acties via deze app, niet handmatige acties in TikTok zelf.
 
+Zoek in **Coolify → Logs** op `moderation-request-failed` of de foutreferentie uit het dashboard. Deze JSON-regels bevatten de actie, foutsoort en beschikbare HTTP-statussen, zonder gebruikersgegevens, cookies of antwoordinhoud; dashboardmeldingen worden alleen gelogd als de server bereikbaar en de sessie geldig is.
+
 ## Herstel en credentials
 
 `LIVE_AUTO_RECONNECT=true` herstelt een onderbroken verbinding met maximaal vijf oplopende pogingen. Stop annuleert herstel; authenticatiefouten starten geen lus. `LIVE_AUTO_CONNECT=true` verbindt na starten automatisch; dit staat standaard uit. Dashboardvernieuwing herstelt de gedeelde chat via SSE zonder een tweede TikTok-verbinding.
