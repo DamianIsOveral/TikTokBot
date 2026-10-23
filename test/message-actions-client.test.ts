@@ -33,6 +33,7 @@ test('message menu restores only confirmed restrictions and submits no remote li
   let elapsed = 0;
   let confirmation = true;
   let partial = false;
+  let htmlResponse = false;
   const globals = {
     Element:Node,innerWidth:1280,innerHeight:900,performance:{now:()=>elapsed},window:{confirm:()=>confirmation},
     document:{createElement:()=>menu,body:{append:()=>{}},querySelector:(selector:string)=>selector==='#toast'?toast
@@ -59,9 +60,11 @@ test('message menu restores only confirmed restrictions and submits no remote li
   const snapshot=()=>({roomId:'room-a',serverNow:1000+elapsed,entries});
   t.mock.method(globalThis,'fetch',async (input: Parameters<typeof fetch>[0],init?: RequestInit)=>{
     requests.push(String(input));
+    if(String(input)==='/api/moderation/errors')return new Response(null,{status:204});
     if(init?.method==='POST') {
       const body=JSON.parse(String(init.body));
       posts.push(body);
+      if(htmlResponse)return new Response('<!DOCTYPE html>private proxy error',{status:502,headers:{'Content-Type':'text/html'}});
       entries=[{...record,action:body.action}];
       if (body.action==='mute-ban') {
         entries=partial ? [{...record,action:'mute'}] : [{...record,action:'mute'},{...record,action:'ban'}];
@@ -69,7 +72,7 @@ test('message menu restores only confirmed restrictions and submits no remote li
           error:'Demping is door de API geaccepteerd; blokkeren is niet bevestigd.'},{status:502});
       }
     }
-    return Response.json({...rights,moderation:snapshot()});
+    return Response.json({...rights,moderation:snapshot(),...(init?.method==='POST'?{accepted:true}:{})});
   });
   feedback.applyModerationFeedback(snapshot());
   const actions=createMessageActions(()=>{});
@@ -122,17 +125,25 @@ test('message menu restores only confirmed restrictions and submits no remote li
   assert.equal(feedback.confirmedRestriction('456','mute'),true);
   assert.equal(feedback.confirmedRestriction('456','ban'),false);
   assert.match(toast.textContent,/blokkeren is niet bevestigd/);
+  entries=[];elapsed=6800;await open();
+  htmlResponse=true;await click('mute-menu');await click('mute:30');
+  assert.equal(posts.length,5);
+  assert.equal(state.messages[0].resolved,false);
+  assert.equal(feedback.confirmedRestriction('456','mute'),false);
+  assert.match(toast.textContent,/uitkomst is niet bevestigd.*HTTP 502, HTML-antwoord.*referentie/);
+  assert.doesNotMatch(toast.textContent,/DOCTYPE|private proxy|JSON.parse|Unexpected token/);
+  assert.equal(requests.filter(url=>url==='/api/moderation/errors').length,1);
   entries=[record];
   elapsed=6900;await open();
   state.moderation={...rights,ban:false};
   elapsed=7000;feedback.applyModerationFeedback(snapshot());
   await click('unban');
-  assert.equal(posts.length,4);
+  assert.equal(posts.length,5);
   assert.match(menu.innerHTML,/data-menu-action="unban"[\s\S]*?disabled/);
   state.moderation=rights;
   state.serverConnected=false;elapsed=8000;feedback.applyModerationFeedback(snapshot());
   assert.doesNotMatch(menu.innerHTML,/data-menu-action="unban"/);
-  assert.ok(requests.every(url=>url==='/api/moderation'));
+  assert.ok(requests.every(url=>url==='/api/moderation'||url==='/api/moderation/errors'));
   await actions.open(1,{x:120,y:80},'reviews');
   assert.equal(reviewTrigger.attributes.get('aria-expanded'),'true');
   assert.equal(chatTrigger.attributes.get('aria-expanded'),'true');
